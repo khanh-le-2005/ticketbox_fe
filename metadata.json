@@ -1,0 +1,5 @@
+{
+  "name": "TicketGo Clone",
+  "description": "A landing page clone of an event ticketing website, built with React, TypeScript, and Tailwind CSS. It includes features like event browsing, user authentication, and protected routes.",
+  "requestFramePermissions": []
+}
