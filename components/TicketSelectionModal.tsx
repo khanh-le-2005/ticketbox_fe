@@ -1,6 +1,8 @@
+// src/components/TicketSelectionModal.tsx
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { TicketSelectionModalProps, TicketSelection } from '../types';
-import { FaTimes, FaPlus, FaMinus } from 'react-icons/fa';
+import { FaTimes, FaPlus, FaMinus, FaTicketAlt } from 'react-icons/fa';
 
 const TicketSelectionModal: React.FC<TicketSelectionModalProps> = ({
     isOpen,
@@ -10,7 +12,7 @@ const TicketSelectionModal: React.FC<TicketSelectionModalProps> = ({
     eventName
 }) => {
 
-    // Create a default selection state
+    // Khởi tạo state
     const initialSelection = useMemo(() => {
         const selection: TicketSelection = {};
         ticketTiers.forEach(tier => {
@@ -21,21 +23,32 @@ const TicketSelectionModal: React.FC<TicketSelectionModalProps> = ({
 
     const [selection, setSelection] = useState<TicketSelection>(initialSelection);
 
-    // Sync state if the ticket tiers prop changes
+    // Reset khi mở lại
     useEffect(() => {
-        setSelection(initialSelection);
-    }, [initialSelection]);
+        if (isOpen) {
+            setSelection(initialSelection);
+        }
+    }, [isOpen, initialSelection]);
 
+    // Tính tổng vé
     const totalSelectedTickets = useMemo(() => {
-        // FIX: Operator '+' cannot be applied to types 'unknown' and 'number'. By explicitly typing `sum`, we ensure it's treated as a number.
         return Object.values(selection).reduce((sum: number, count) => sum + (count as number), 0);
     }, [selection]);
 
+    // Tính tổng tiền (FIX LỖI: Xử lý cả trường hợp giá là string hoặc number)
     const totalPrice = useMemo(() => {
         return ticketTiers.reduce((total: number, tier) => {
             const quantity = selection[tier.name] || 0;
-            const numericPrice = Number(tier.price.replace(/[^0-9]/g, ''));
-            return total + (quantity as number) * numericPrice;
+            
+            let priceVal = 0;
+            if (typeof tier.price === 'number') {
+                priceVal = tier.price;
+            } else if (typeof tier.price === 'string') {
+                // Xóa ký tự không phải số nếu là string (VD: "100.000 đ")
+                priceVal = Number(tier.price.replace(/[^0-9]/g, ''));
+            }
+
+            return total + (quantity as number) * priceVal;
         }, 0);
     }, [selection, ticketTiers]);
 
@@ -43,7 +56,12 @@ const TicketSelectionModal: React.FC<TicketSelectionModalProps> = ({
 
     const handleQuantityChange = (tierName: string, delta: number) => {
         setSelection(prev => {
-            const newQuantity = Math.max(0, (prev[tierName] || 0) + delta);
+            const currentQty = prev[tierName] || 0;
+            // Kiểm tra số lượng tồn kho (nếu có trường available)
+            const tier = ticketTiers.find(t => t.name === tierName);
+            const maxQty = tier && (tier as any).available !== undefined ? (tier as any).available : 99;
+
+            const newQuantity = Math.max(0, Math.min(currentQty + delta, maxQty));
             return { ...prev, [tierName]: newQuantity };
         });
     };
@@ -54,90 +72,105 @@ const TicketSelectionModal: React.FC<TicketSelectionModalProps> = ({
         }
     };
 
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex justify-center items-center p-4">
-            <div className="bg-white text-black rounded-lg shadow-2xl w-full max-w-2xl relative animate-fade-in-up">
+    // Helper format tiền hiển thị
+    const formatPrice = (price: number | string) => {
+        const val = typeof price === 'string' ? Number(price.replace(/[^0-9]/g, '')) : price;
+        return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
+    };
 
-                {/* Close Button */}
-                <button
-                    onClick={onClose}
-                    className="absolute top-4 right-4 text-gray-400 hover:text-white"
-                >
-                    <FaTimes size={24} />
-                </button>
+    return (
+        <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-center p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl relative animate-fade-in-up overflow-hidden flex flex-col max-h-[90vh]">
 
                 {/* Header */}
-                <div className="p-4 sm:p-8 bg-[#EEEEEE]">
-                    <h2
-                        className="text-2xl sm:text-3xl font-bold text-black mb-6 text-center"
-                        style={{ fontFamily: "serif" }}
+                <div className="bg-indigo-600 p-6 text-center relative shrink-0">
+                    <button
+                        onClick={onClose}
+                        className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors"
                     >
-                        Chọn Vé Của Bạn
-                    </h2>
+                        <FaTimes size={24} />
+                    </button>
+                    <h2 className="text-2xl font-bold text-white mb-1">Chọn Vé</h2>
+                    <p className="text-indigo-100 text-sm truncate px-8">{eventName}</p>
+                </div>
 
-                    {/* Ticket List */}
-                    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-                        {ticketTiers.map(tier => (
-                            <div
-                                key={tier.name}
-                                className="bg-white p-4 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between"
-                            >
-                                <div className="mb-4 sm:mb-0">
-                                    <h3 className="text-lg font-bold text-yellow-500">
-                                        {tier.name}
-                                    </h3>
-                                    <p className="text-sm">
-                                        {tier.description || tier.type}
-                                    </p>
-                                    <p className="text-lg font-semibold mt-1">
-                                        {tier.price}
-                                    </p>
+                {/* Body - Scrollable */}
+                <div className="p-6 overflow-y-auto custom-scrollbar">
+                    <div className="space-y-4">
+                        {ticketTiers.map(tier => {
+                            // Xử lý hiển thị tồn kho (nếu có)
+                            // @ts-ignore
+                            const available = tier.available !== undefined ? tier.available : 999;
+                            const isSoldOut = available <= 0;
+
+                            return (
+                                <div
+                                    key={tier.name}
+                                    className={`p-4 rounded-xl border-2 transition-all flex flex-col sm:flex-row items-center justify-between ${
+                                        (selection[tier.name] || 0) > 0 
+                                        ? 'border-orange-500 bg-orange-50' 
+                                        : 'border-gray-100 hover:border-indigo-200'
+                                    } ${isSoldOut ? 'opacity-60 bg-gray-50' : ''}`}
+                                >
+                                    <div className="mb-4 sm:mb-0 text-center sm:text-left w-full sm:w-auto">
+                                        <h3 className="text-lg font-bold text-gray-800 flex items-center justify-center sm:justify-start">
+                                            <FaTicketAlt className={`mr-2 ${isSoldOut ? 'text-gray-400' : 'text-orange-500'}`} />
+                                            {tier.name}
+                                        </h3>
+                                        <p className="text-indigo-600 font-bold text-lg mt-1">
+                                            {formatPrice(tier.price)}
+                                        </p>
+                                        {isSoldOut ? (
+                                            <span className="text-xs font-bold text-red-500 bg-red-100 px-2 py-0.5 rounded">HẾT VÉ</span>
+                                        ) : (
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                {tier.description || "Vé vào cổng trực tiếp"}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div className="flex items-center space-x-3 bg-white p-1 rounded-full shadow-sm border border-gray-200">
+                                        <button
+                                            onClick={() => handleQuantityChange(tier.name, -1)}
+                                            disabled={!selection[tier.name] || isSoldOut}
+                                            className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            <FaMinus size={12} />
+                                        </button>
+
+                                        <span className="text-lg font-bold w-8 text-center text-gray-800">
+                                            {selection[tier.name] || 0}
+                                        </span>
+
+                                        <button
+                                            onClick={() => handleQuantityChange(tier.name, 1)}
+                                            disabled={isSoldOut || (selection[tier.name] || 0) >= available}
+                                            className="w-8 h-8 rounded-full flex items-center justify-center bg-indigo-100 text-indigo-600 hover:bg-indigo-600 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            <FaPlus size={12} />
+                                        </button>
+                                    </div>
                                 </div>
-
-                                <div className="flex items-center space-x-4 self-end sm:self-center">
-                                    <button
-                                        onClick={() => handleQuantityChange(tier.name, -1)}
-                                        disabled={selection[tier.name] === 0}
-                                        className=" rounded-full w-8 h-8 flex items-center justify-center hover:bg-yellow-400"
-                                    >
-                                        <FaMinus />
-                                    </button>
-
-                                    <span className="text-xl font-bold w-8 text-center">
-                                        {selection[tier.name]}
-                                    </span>
-
-                                    <button
-                                        onClick={() => handleQuantityChange(tier.name, 1)}
-                                        className=" text-gray-900 rounded-full w-8 h-8 flex items-center justify-center hover:bg-yellow-400"
-                                    >
-                                        <FaPlus />
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
 
                 {/* Footer */}
-                <div className="bg-gray-800 p-4 rounded-b-lg flex flex-col sm:flex-row justify-between items-center text-center sm:text-left space-y-4 sm:space-y-0">
-                    <div>
-                        <span className="text-gray-400">Tổng cộng:</span>
-                        <p className="text-2xl font-bold text-yellow-400">
-                            {totalPrice.toLocaleString('vi-VN')} VNĐ
-                        </p>
+                <div className="bg-white border-t border-gray-100 p-6 shrink-0 flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div className="text-center sm:text-left">
+                        <span className="text-gray-500 text-sm block">Tổng thanh toán</span>
+                        <span className="text-2xl font-bold text-orange-600 block leading-none">
+                            {totalPrice.toLocaleString('vi-VN')} ₫
+                        </span>
                     </div>
 
                     <button
                         onClick={handleConfirm}
                         disabled={totalSelectedTickets === 0}
-                        className={`w-full sm:w-auto font-bold py-3 px-8 rounded-lg text-lg transition-colors ${
-                            totalSelectedTickets > 0
-                                ? 'bg-yellow-500 text-gray-900 hover:bg-yellow-400'
-                                : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                        }`}
+                        className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg transform transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                     >
-                        Tiếp tục
+                        Tiếp tục ({totalSelectedTickets})
                     </button>
                 </div>
             </div>

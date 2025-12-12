@@ -1,6 +1,6 @@
-import axiosClient from "./axiosClient";
+import axiosClient from "./axiosClient"; // Đảm bảo đây là instance đã cấu hình baseURL
 
-// Định nghĩa lại interface cơ bản để gợi ý code (tùy chọn, nếu bạn có file types riêng thì import vào)
+// Interface (Giữ nguyên)
 interface ShowDTO {
   id?: string;
   name: string;
@@ -17,37 +17,38 @@ interface ShowDTO {
 }
 
 export const ShowAPI = {
-  // 1. Lấy tất cả danh sách show
+  // 1. Lấy tất cả
   getAllShows: () => {
     return axiosClient.get("/shows");
   },
 
-  // 2. Lấy chi tiết 1 show theo ID
+  // 2. Lấy chi tiết
   getShowById: (id: string) => {
     return axiosClient.get(`/shows/${id}`);
   },
 
-  // 3. Tạo show mới (Có gửi kèm file ảnh)
+  // 3. TẠO SHOW (ĐÃ SỬA ĐỂ KHỚP VỚI JAVA SPRING BOOT)
   createShow: (data: ShowDTO, images: File[]) => {
     const formData = new FormData();
 
-    // Cách 1: Gửi toàn bộ thông tin show dưới dạng chuỗi JSON vào field 'data' hoặc 'show'
-    // (Backend cần parse chuỗi này ra object)
-    formData.append("data", JSON.stringify(data));
-
-    // Cách 2: Nếu Backend yêu cầu gửi rời từng trường, bạn phải append từng cái:
-    // formData.append("name", data.name);
-    // formData.append("startTime", data.startTime);
-    // ...
+    // --- QUAN TRỌNG: Gói JSON vào Blob ---
+    // Backend Java yêu cầu @RequestPart("show") phải có Content-Type là application/json
+    const jsonBlob = new Blob([JSON.stringify(data)], {
+      type: "application/json",
+    });
+    
+    // Tên key phải là "show" (khớp với Controller Backend)
+    formData.append("show", jsonBlob); 
 
     // Gửi danh sách ảnh
     if (images && images.length > 0) {
       images.forEach((file) => {
-        // 'images' là tên field mà Backend (Multer/Spring) mong đợi
-        formData.append("images", file); 
+        formData.append("images", file);
       });
     }
 
+    // Axios tự động set Content-Type là multipart/form-data khi thấy FormData
+    // Nhưng ta ghi đè để chắc chắn
     return axiosClient.post("/shows", formData, {
       headers: {
         "Content-Type": "multipart/form-data",
@@ -55,21 +56,21 @@ export const ShowAPI = {
     });
   },
 
-  // 4. Cập nhật show (Có thể cập nhật ảnh hoặc không)
+  // 4. CẬP NHẬT SHOW (TƯƠNG TỰ CREATE)
   updateShow: (id: string, data: ShowDTO, images: File[]) => {
     const formData = new FormData();
-    
-    // Tương tự như create, gửi data dạng JSON string
-    formData.append("data", JSON.stringify(data));
 
-    // Nếu có chọn ảnh mới thì gửi lên
+    const jsonBlob = new Blob([JSON.stringify(data)], {
+      type: "application/json",
+    });
+    formData.append("show", jsonBlob);
+
     if (images && images.length > 0) {
       images.forEach((file) => {
         formData.append("images", file);
       });
     }
 
-    // Dùng PUT hoặc PATCH tùy backend quy định
     return axiosClient.put(`/shows/${id}`, formData, {
       headers: {
         "Content-Type": "multipart/form-data",
