@@ -1,89 +1,165 @@
+// src/components/BookingModal.tsx
 
-import React from 'react';
-import { BookingModalProps } from '../types';
-import { FaTimes, FaCalendarCheck } from 'react-icons/fa';
+import React, { useState } from 'react';
+import { Event, BookingDetails, ContactInfo, TicketSelection } from '../types';
+import TicketSelectionModal from './TicketSelectionModal';
+import ContactInfoModal from './ContactInfoModal';
+import OtpVerificationModal from './OtpVerificationModal';
+// Đã XÓA import QrVerificationModal để hết lỗi
+import EventReceiptModal from './EventReceiptModal';
+import BookingSuccessToast from './BookingSuccessToast';
 
-const BookingModal: React.FC<BookingModalProps> = ({ hotel, isOpen, onClose, onConfirm, checkInDate, checkOutDate, guests, isBooking }) => {
-    if (!isOpen || !hotel) return null;
+import { useAuth } from '../hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
+import { BookingAPI } from '../api/bookingApi'; 
 
-    const nights = Math.max(1, Math.round((new Date(checkOutDate).getTime() - new Date(checkInDate).getTime()) / (1000 * 60 * 60 * 24)));
-    const totalPrice = nights * hotel.pricePerNight;
+interface BookingModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    event: Event;
+}
+
+// Các bước đặt vé
+enum BookingStep {
+    TICKET_SELECTION,
+    CONTACT_INFO,
+    OTP_VERIFICATION,
+    RECEIPT
+    // Đã XÓA bước QR_VERIFICATION
+}
+
+const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, event }) => {
+    const { user } = useAuth();
+    // const navigate = useNavigate(); // Nếu không dùng navigate trong file này thì có thể xóa luôn
+
+    const [currentStep, setCurrentStep] = useState<BookingStep>(BookingStep.TICKET_SELECTION);
+    const [ticketSelection, setTicketSelection] = useState<TicketSelection>({});
+    const [totalPrice, setTotalPrice] = useState(0);
+    const [contactInfo, setContactInfo] = useState<ContactInfo>({ phone: '', email: '' });
+    const [bookingResult, setBookingResult] = useState<BookingDetails | null>(null);
+    const [showSuccessToast, setShowSuccessToast] = useState(false);
+    const [isConfirming, setIsConfirming] = useState(false);
+
+    // --- 1. CHỌN VÉ XONG ---
+    const handleTicketConfirm = (selection: TicketSelection, price: number) => {
+        setTicketSelection(selection);
+        setTotalPrice(price);
+        setCurrentStep(BookingStep.CONTACT_INFO);
+    };
+
+    // --- 2. NHẬP THÔNG TIN XONG ---
+    const handleContactConfirm = (info: ContactInfo) => {
+        setContactInfo(info);
+        setCurrentStep(BookingStep.OTP_VERIFICATION);
+    };
+
+    // --- 3. XÁC THỰC OTP XONG -> GỌI API ĐẶT VÉ ---
+    const handleOtpConfirm = async () => {
+        setIsConfirming(true);
+        try {
+            // Chuẩn bị dữ liệu
+            const ticketOrders = Object.entries(ticketSelection)
+                .filter(([, qty]) => (qty as number) > 0)
+                .map(([tierName, qty]) => ({
+                    ticketTypeName: tierName, 
+                    quantity: Number(qty)
+                }));
+
+            const bookingPayload = {
+                showId: event.id,
+                customerName: user?.email || "Khách hàng",
+                customerEmail: contactInfo.email,
+                customerPhone: contactInfo.phone,
+                ticketOrders: ticketOrders
+            };
+
+            // Gọi API
+            const res = await BookingAPI.createBooking(bookingPayload);
+            const newBooking = res.data;
+
+            // Map kết quả
+            const finalDetails: BookingDetails = {
+                bookingId: newBooking.bookingCode || "BK-" + Date.now(),
+                event: event,
+                ticketSelection: ticketSelection,
+                tickets: newBooking.tickets?.map((t: any) => ({
+                    code: t.ticketCode,
+                    tierName: t.ticketTypeName
+                })) || [],
+                totalPrice: newBooking.totalAmount || totalPrice,
+                contactInfo: contactInfo,
+                timestamp: new Date().toISOString()
+            };
+
+            setBookingResult(finalDetails);
+            
+            // Lưu local storage (tùy chọn)
+            const currentBookings = JSON.parse(localStorage.getItem('myEventBookings') || '[]');
+            localStorage.setItem('myEventBookings', JSON.stringify([finalDetails, ...currentBookings]));
+
+            setShowSuccessToast(true);
+            setTimeout(() => setShowSuccessToast(false), 3000);
+            setCurrentStep(BookingStep.RECEIPT);
+
+        } catch (error) {
+            console.error("Lỗi đặt vé:", error);
+            alert("Đặt vé thất bại. Vui lòng thử lại.");
+        } finally {
+            setIsConfirming(false);
+        }
+    };
+
+    // --- 4. ĐÓNG MODAL ---
+    const handleCloseAll = () => {
+        setCurrentStep(BookingStep.TICKET_SELECTION);
+        onClose();
+    };
+
+    if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
-            <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg m-4 transform transition-all animate-fade-in-up">
-                <div className="p-6 relative">
-                    <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
-                        <FaTimes size={20} />
-                    </button>
-                    <h2 className="text-2xl font-bold text-gray-800 mb-4">Xác nhận đặt phòng</h2>
-                </div>
+        <>
+            <BookingSuccessToast 
+                message="Đặt vé thành công! Vui lòng kiểm tra email." 
+                isVisible={showSuccessToast} 
+            />
 
-                <div className="px-6 pb-6">
-                    <div className="flex items-center space-x-4 mb-6">
-                        <img src={hotel.imageUrl} alt={hotel.name} className="w-24 h-24 rounded-md object-cover"/>
-                        <div>
-                            <h3 className="text-lg font-semibold text-gray-900">{hotel.name}</h3>
-                            <p className="text-sm text-gray-500">{hotel.location}</p>
-                        </div>
-                    </div>
+            {currentStep === BookingStep.TICKET_SELECTION && (
+                <TicketSelectionModal
+                    isOpen={true}
+                    onClose={onClose}
+                    onConfirm={handleTicketConfirm}
+                    ticketTiers={event.ticketTiers || []}
+                    eventName={event.title}
+                />
+            )}
 
-                    <div className="bg-gray-50 p-4 rounded-lg space-y-3">
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-600">Nhận phòng:</span>
-                            <span className="font-semibold text-gray-800">{new Date(checkInDate).toLocaleDateString('vi-VN')}</span>
-                        </div>
-                         <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-600">Trả phòng:</span>
-                            <span className="font-semibold text-gray-800">{new Date(checkOutDate).toLocaleDateString('vi-VN')}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-600">Số đêm:</span>
-                            <span className="font-semibold text-gray-800">{nights}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-600">Số khách:</span>
-                            <span className="font-semibold text-gray-800">{guests}</span>
-                        </div>
-                    </div>
-                    
-                    <div className="border-t my-4"></div>
+            {currentStep === BookingStep.CONTACT_INFO && (
+                <ContactInfoModal
+                    isOpen={true}
+                    onClose={onClose}
+                    onConfirm={handleContactConfirm}
+                />
+            )}
 
-                    <div className="flex justify-between items-center">
-                        <span className="text-gray-800 font-semibold text-lg">Tổng cộng:</span>
-                        <span className="font-bold text-orange-500 text-2xl">
-                            {totalPrice.toLocaleString('vi-VN')} ₫
-                        </span>
-                    </div>
-                </div>
-
-                <div className="bg-gray-50 p-4 rounded-b-lg flex justify-end space-x-3">
-                    <button onClick={onClose} className="px-4 py-2 rounded-md text-sm font-medium bg-gray-200 text-gray-800 hover:bg-gray-300">
-                        Hủy
-                    </button>
-                    <button 
-                        onClick={onConfirm} 
-                        disabled={isBooking}
-                        className="px-6 py-2 rounded-md text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 flex items-center justify-center space-x-2 w-32 disabled:bg-indigo-400 disabled:cursor-not-allowed"
-                    >
-                        {isBooking ? (
-                            <>
-                                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                <span>Đang xử lý</span>
-                            </>
-                        ) : (
-                            <>
-                                <FaCalendarCheck />
-                                <span>Xác nhận</span>
-                            </>
-                        )}
-                    </button>
-                </div>
-            </div>
-        </div>
+            {currentStep === BookingStep.OTP_VERIFICATION && (
+                <OtpVerificationModal
+                    isOpen={true}
+                    onClose={onClose}
+                    onConfirm={handleOtpConfirm}
+                    contactInfo={contactInfo}
+                />
+            )}
+            
+            {/* Bước RECEIPT: Hiển thị hóa đơn cuối cùng */}
+            {currentStep === BookingStep.RECEIPT && bookingResult && (
+                <EventReceiptModal
+                    isOpen={true}
+                    onClose={handleCloseAll}
+                    details={bookingResult}
+                />
+            )}
+        </>
     );
 };
 

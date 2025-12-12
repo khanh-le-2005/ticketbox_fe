@@ -3,8 +3,10 @@ import React from 'react';
 
 export interface User {
   email: string;
-  lastLogin?: number;
+  lastLogin: number;
+  role: "ADMIN" | "VANHANH";
 }
+
 
 export interface AuthContextType {
   user: User | null;
