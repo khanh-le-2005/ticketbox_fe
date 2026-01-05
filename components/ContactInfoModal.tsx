@@ -1,155 +1,218 @@
-// src/components/ContactInfoModal.tsx
+import React, { useState } from 'react';
+import { FaTimes, FaUser, FaPhone, FaEnvelope, FaLock, FaArrowLeft, FaSpinner } from 'react-icons/fa';
+import bookingApi from '../api/bookingApi'; // Sử dụng API Vé sự kiện
+import roomApi from "@/api/room_api"; // Đảm bảo đường dẫn import đúng file roomApi.ts
 
-import React, { useState, useEffect } from 'react';
-import { ContactInfoModalProps } from '../types';
-import { FaTimes, FaEnvelope, FaPhone, FaPaperPlane } from 'react-icons/fa';
-import axiosClient from '../api/axiosClient'; // Import axios instance
-import { useAuth } from '../hooks/useAuth'; // Lấy thông tin user đã login
+interface ContactData {
+    name: string;
+    email: string;
+    phone: string;
+    otp: string;
+}
 
-const ContactInfoModal: React.FC<ContactInfoModalProps> = ({
-    isOpen,
-    onClose,
-    onConfirm,
-}) => {
-    const { user } = useAuth(); // Lấy user từ context
-    const [phone, setPhone] = useState('');
-    const [email, setEmail] = useState('');
-    const [error, setError] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
+interface Props {
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: (data: ContactData) => void;
+}
 
-    useEffect(() => {
-        if (isOpen) {
-            // Tự động điền email nếu người dùng đã đăng nhập
-            if (user?.email) setEmail(user.email);
-            else setEmail('');
-            
-            setPhone('');
-            setError('');
-            setIsLoading(false);
-        }
-    }, [isOpen, user]);
+const ContactInfoModal: React.FC<Props> = ({ isOpen, onClose, onConfirm }) => {
+    // --- STATE ---
+    const [step, setStep] = useState<1 | 2>(1); // 1: Nhập Info, 2: Nhập OTP
+    const [loading, setLoading] = useState(false);
+    
+    const [formData, setFormData] = useState<ContactData>({
+        name: '',
+        email: '',
+        phone: '',
+        otp: ''
+    });
 
-    if (!isOpen) return null;
+    // --- HANDLERS ---
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
 
-    const handleSubmit = async () => {
-        setError('');
+    // BƯỚC 1: Gửi yêu cầu OTP -> Chuyển sang bước 2
+    const handleSendOtp = async (e: React.FormEvent) => {
+        e.preventDefault(); // Ngăn reload form
         
-        // 1. Validate
-        if (!phone.trim() || !email.trim()) {
-            setError('Vui lòng nhập đầy đủ email và số điện thoại.');
+        // Validate cơ bản
+        if (!formData.name || !formData.phone || !formData.email) {
+            alert("Vui lòng điền đầy đủ Họ tên, SĐT và Email!");
             return;
-        }
-        if (!/^\S+@\S+\.\S+$/.test(email)) {
-            setError('Địa chỉ Email không hợp lệ.');
-            return;
-        }
-        if (!/(03|05|07|08|09|01[2|6|8|9])+([0-9]{8})\b/.test(phone)) {
-            // Regex đơn giản cho sđt Việt Nam (hoặc bỏ qua nếu muốn lỏng lẻo hơn)
-           // setError('Số điện thoại không đúng định dạng.'); 
-           // return;
         }
 
-        // 2. Gọi API Gửi OTP
-        setIsLoading(true);
+        setLoading(true);
         try {
-            // Gọi API Backend: POST /api/otp/send
-            await axiosClient.post('/otp/send', { email, phone });
+            // Gọi API gửi OTP
+            console.log("Đang gửi OTP đến:", formData.email);
+            await bookingApi.requestOtp(formData.email);
             
-            // Nếu thành công, chuyển sang bước nhập OTP
-            onConfirm({ phone, email });
-        } catch (err: any) {
-            console.error("Gửi OTP lỗi:", err);
-            const msg = err.response?.data || "Không thể gửi OTP. Vui lòng thử lại.";
-            setError(typeof msg === 'string' ? msg : "Lỗi kết nối server.");
+            // Thành công -> Chuyển bước
+            setStep(2); 
+        } catch (error: any) {
+            console.error("Lỗi gửi OTP:", error);
+            const msg = error.response?.data?.message || "Gửi OTP thất bại. Vui lòng kiểm tra lại email.";
+            alert(msg);
         } finally {
-            setIsLoading(false);
+            setLoading(false);
         }
     };
 
+    // BƯỚC 2: Submit OTP và Thông tin về Parent để tạo Booking
+    const handleSubmitConfirm = () => {
+        if (!formData.otp || formData.otp.length < 6) {
+            alert("Vui lòng nhập mã OTP hợp lệ (6 số)");
+            return;
+        }
+        // Gọi callback onConfirm truyền dữ liệu ra ngoài cho BookingModal xử lý
+        onConfirm(formData);
+    };
+
+    if (!isOpen) return null;
+
     return (
-        <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-center p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md relative animate-fade-in-up overflow-hidden">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden relative">
                 
                 {/* Header */}
-                <div className="bg-indigo-600 p-6 text-center relative">
-                    <button
-                        onClick={onClose}
-                        className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors"
-                    >
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-4 flex justify-between items-center text-white">
+                    <div className="flex items-center gap-3">
+                        {step === 2 && (
+                            <button 
+                                type="button"
+                                onClick={() => setStep(1)} 
+                                className="hover:bg-white/20 p-1 rounded-full transition"
+                                title="Quay lại"
+                            >
+                                <FaArrowLeft />
+                            </button>
+                        )}
+                        <h3 className="text-lg font-bold">
+                            {step === 1 ? "Xác Thực OTP" : "Xác Thực OTP"}
+                        </h3>
+                    </div>
+                    <button onClick={onClose} className="text-white/80 hover:text-white transition">
                         <FaTimes size={20} />
                     </button>
-                    <h2 className="text-2xl font-bold text-white mb-1">Thông Tin Liên Hệ</h2>
-                    <p className="text-indigo-100 text-sm">Chúng tôi sẽ gửi vé điện tử qua email này</p>
                 </div>
 
-                <div className="p-8">
-                    <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
-                        <div className="space-y-5">
+                <div className="p-6">
+                    {/* --- GIAO DIỆN BƯỚC 1: NHẬP THÔNG TIN --- */}
+                    {step === 1 && (
+                        <form onSubmit={handleSendOtp} className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
                             <div>
-                                <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                                    <FaEnvelope className="mr-2 text-indigo-500" /> Email nhận vé
-                                </label>
-                                <input
-                                    id="email"
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="vidu@gmail.com"
-                                    className="w-full border border-gray-300 rounded-lg py-2.5 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                                    required
-                                    // Nếu đã login thì có thể disable hoặc để readonly nếu muốn
-                                    // readOnly={!!user?.email} 
-                                />
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Họ và tên</label>
+                                <div className="relative">
+                                    <FaUser className="absolute left-3 top-3 text-gray-400" />
+                                    <input 
+                                        name="name" 
+                                        value={formData.name} 
+                                        onChange={handleChange}
+                                        className="w-full pl-10 pr-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                        placeholder="Nguyễn Văn A"
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Số điện thoại</label>
+                                <div className="relative">
+                                    <FaPhone className="absolute left-3 top-3 text-gray-400" />
+                                    <input 
+                                        name="phone" 
+                                        value={formData.phone} 
+                                        onChange={handleChange}
+                                        className="w-full pl-10 pr-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                        placeholder="0912xxxxxx"
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Email nhận vé</label>
+                                <div className="relative">
+                                    <FaEnvelope className="absolute left-3 top-3 text-gray-400" />
+                                    <input 
+                                        type="email"
+                                        name="email" 
+                                        value={formData.email} 
+                                        onChange={handleChange}
+                                        className="w-full pl-10 pr-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                        placeholder="email@example.com"
+                                        required
+                                    />
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1 italic">
+                                    Mã xác thực (OTP) sẽ được gửi đến email này.
+                                </p>
+                            </div>
+
+                            <button 
+                                type="submit"
+                                disabled={loading}
+                                className="w-full bg-orange-600 text-white py-3 rounded-xl font-bold hover:bg-orange-700 transition-all shadow-lg mt-4 flex justify-center items-center gap-2 disabled:bg-gray-400"
+                            >
+                                {loading ? <><FaSpinner className="animate-spin"/> Đang gửi OTP...</> : "Tiếp tục & Gửi OTP"}
+                            </button>
+                        </form>
+                    )}
+
+                    {/* --- GIAO DIỆN BƯỚC 2: NHẬP OTP --- */}
+                    {step === 2 && (
+                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                            <div className="text-center">
+                                <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-3 border border-blue-100">
+                                    <FaEnvelope className="text-blue-600 text-2xl" />
+                                </div>
+                                <h4 className="font-bold text-gray-800 text-lg">Kiểm tra email của bạn</h4>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    Mã OTP 6 số đã được gửi đến <br/>
+                                    <span className="font-bold text-indigo-600">{formData.email}</span>
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2 text-center">Nhập mã xác thực</label>
+                                <div className="relative">
+                                    <FaLock className="absolute left-3 top-3.5 text-orange-500" />
+                                    <input 
+                                        name="otp"
+                                        value={formData.otp}
+                                        onChange={handleChange}
+                                        maxLength={6}
+                                        className="w-full pl-10 pr-3 py-3 border-2 border-orange-200 rounded-xl focus:border-orange-500 outline-none text-center text-2xl font-bold tracking-[0.5em] text-gray-700 placeholder:tracking-normal placeholder:text-base placeholder:font-normal"
+                                        placeholder="000000"
+                                        autoFocus
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
+                                <button 
+                                    onClick={handleSubmitConfirm}
+                                    className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white py-3 rounded-xl font-bold hover:shadow-lg transition-transform active:scale-95"
+                                >
+                                    Xác nhận & Thanh toán
+                                </button>
                             </div>
                             
-                            <div>
-                                <label htmlFor="phone" className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                                    <FaPhone className="mr-2 text-indigo-500" /> Số điện thoại
-                                </label>
-                                <input
-                                    id="phone"
-                                    type="tel"
-                                    value={phone}
-                                    onChange={(e) => setPhone(e.target.value)}
-                                    placeholder="0912..."
-                                    className="w-full border border-gray-300 rounded-lg py-2.5 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                                    required
-                                />
+                            <div className="text-center text-xs text-gray-500">
+                                Chưa nhận được mã?{' '}
+                                <button 
+                                    type="button"
+                                    onClick={(e) => handleSendOtp(e as any)} 
+                                    disabled={loading}
+                                    className="text-blue-600 hover:underline font-medium disabled:text-gray-400"
+                                >
+                                    {loading ? 'Đang gửi...' : 'Gửi lại mã'}
+                                </button>
                             </div>
                         </div>
-
-                        {error && (
-                            <div className="mt-4 p-3 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm rounded">
-                                {error}
-                            </div>
-                        )}
-
-                        <div className="mt-8">
-                            <button
-                                type="submit"
-                                disabled={isLoading}
-                                className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-8 rounded-lg text-lg transition-all transform active:scale-95 flex items-center justify-center space-x-2 shadow-md disabled:opacity-70 disabled:cursor-not-allowed"
-                            >
-                                {isLoading ? (
-                                    <>
-                                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                        <span>Đang gửi...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <FaPaperPlane className="text-sm" />
-                                        <span>Gửi mã xác thực (OTP)</span>
-                                    </>
-                                )}
-                            </button>
-                            <p className="text-center text-xs text-gray-400 mt-4">
-                                Bằng việc tiếp tục, bạn đồng ý với Điều khoản sử dụng của chúng tôi.
-                            </p>
-                        </div>
-                    </form>
+                    )}
                 </div>
             </div>
         </div>

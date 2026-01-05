@@ -1,141 +1,134 @@
-import React, { createContext, useState, useEffect, ReactNode } from 'react';
-import { User, AuthContextType } from '../types';
+// src/context/AuthContext.tsx
+
+import React, { createContext, useState, useEffect, ReactNode, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { authApi } from '../api/authApi';
+// Import các interface nếu bạn đã tách file, hoặc định nghĩa tạm ở đây
+import { LoginRequestDTO, RegisterRequestDTO } from '../api/authInterfaces';
+
+// Định nghĩa kiểu User cho Context
+export interface User {
+  username: string;
+  email: string;
+  role: string;
+  fullName?: string;
+}
+
+export interface AuthContextType {
+  user: User | null;
+  loading: boolean;
+  login: (identifier: string, pass: string) => Promise<void>;
+  register: (data: any) => Promise<void>;
+  logout: () => void;
+  isAuthenticated: boolean;
+}
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
+  // 1. Khôi phục phiên đăng nhập khi F5 trang
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const storedUser = localStorage.getItem('user');
-        const lastLoginTime = localStorage.getItem('lastLoginTime');
-        
-        if (storedUser && lastLoginTime) {
-          const loginTime = parseInt(lastLoginTime, 10);
-          const currentTime = Date.now();
-          const hoursSinceLogin = (currentTime - loginTime) / (1000 * 60 * 60);
+    const initAuth = async () => {
+      const token = localStorage.getItem('jwtToken');
+      const storedUser = localStorage.getItem('user');
+
+      if (token && storedUser) {
+        try {
+          // Khôi phục user từ localStorage
+          setUser(JSON.parse(storedUser));
           
-          // Token hết hạn sau 24 giờ
-          const TOKEN_EXPIRY_HOURS = 24;
-          
-          if (hoursSinceLogin < TOKEN_EXPIRY_HOURS) {
-            setUser(JSON.parse(storedUser));
-          } else {
-            // Token hết hạn, xóa thông tin đăng nhập
-            localStorage.removeItem('user');
-            localStorage.removeItem('lastLoginTime');
-            setUser(null);
-          }
-        } else {
-          setUser(null);
+          // (Tùy chọn) Gọi API getProfile để lấy thông tin mới nhất và check token còn sống không
+          // await authApi.getProfile(); 
+        } catch (error) {
+          console.error("Session expired or invalid:", error);
+          logout(); // Token lỗi thì logout luôn
         }
-      } catch (error) {
-        console.error('Error checking authentication:', error);
-        setUser(null);
-      } finally {
-        setLoading(false);
       }
+      setLoading(false);
     };
 
-    checkAuth();
-    
-    // Lắng nghe thay đổi localStorage từ các tab khác
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'user' || e.key === 'lastLoginTime') {
-        checkAuth();
-      }
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
+    initAuth();
   }, []);
 
-  const login = async (email: string, pass: string): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        const isAdmin = email === 'admin@gmail.com' && pass === '123456';
-        const accounts = JSON.parse(localStorage.getItem('accounts') || '[]');
-        const isValidUser = accounts.some((acc: any) => acc.email === email && acc.password === pass);
+  // 2. Hàm Đăng Nhập (Gọi API Backend)
+  const login = async (identifier: string, pass: string): Promise<void> => {
+    try {
+      // Gọi API Login
+      const response: any = await authApi.login({ identifier, password: pass });
 
-        if (isAdmin || isValidUser) {
-          const userData: User = { 
-            email,
-            // Thêm timestamp để validate session
-            lastLogin: Date.now()
-          };
-          
-          // Lưu thông tin đăng nhập với timestamp
-          localStorage.setItem('user', JSON.stringify(userData));
-          localStorage.setItem('lastLoginTime', Date.now().toString());
-          
-          setUser(userData);
-          resolve();
-        } else {
-          reject(new Error('Invalid credentials'));
-        }
-      }, 500);
-    });
+      // Xử lý dữ liệu trả về từ Backend
+      // Cấu trúc mong đợi: { data: { token: "...", role: "...", ... } }
+      // (Lưu ý: axiosClient có thể đã unwrap 1 lớp data rồi)
+      const data = response.data || response; 
+
+      if (data && data.token) {
+        // Lưu Token quan trọng nhất
+        localStorage.setItem('jwtToken', data.token);
+
+        // Tạo object User để lưu state
+        const userData: User = {
+          username: data.username,
+          email: data.email,
+          role: data.role,
+          fullName: data.fullName
+        };
+
+        // Lưu thông tin user để F5 không mất
+        localStorage.setItem('user', JSON.stringify(userData));
+        setUser(userData);
+      } else {
+        throw new Error("Không nhận được token từ máy chủ");
+      }
+    } catch (error) {
+      console.error("Login failed:", error);
+      throw error; // Ném lỗi ra để LoginPage hiển thị
+    }
   };
 
-  const register = async (email: string, pass: string): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        try {
-          const accounts = JSON.parse(localStorage.getItem('accounts') || '[]');
-          
-          // Kiểm tra email đã tồn tại chưa
-          const emailExists = accounts.some((acc: any) => acc.email === email);
-          
-          if (emailExists) {
-            reject(new Error('Email already registered'));
-            return;
-          }
-          
-          accounts.push({ email, password: pass });
-          localStorage.setItem('accounts', JSON.stringify(accounts));
-          resolve();
-        } catch (error) {
-          reject(new Error('Registration failed'));
-        }
-      }, 500);
-    });
+  // 3. Hàm Đăng Ký (Gọi API Backend)
+  const register = async (registerData: any): Promise<void> => {
+    try {
+      // Gọi API Register (Backend tự gán role USER)
+      // Dữ liệu gồm: username, email, phone, password, fullName
+      await authApi.register(registerData);
+    } catch (error) {
+      console.error("Registration failed:", error);
+      throw error;
+    }
   };
 
+  // 4. Hàm Đăng Xuất
   const logout = () => {
+    localStorage.removeItem('jwtToken');
     localStorage.removeItem('user');
-    localStorage.removeItem('lastLoginTime');
+    // Xóa các dữ liệu tạm khác nếu có
+    localStorage.removeItem('myEventBookings'); 
+    
     setUser(null);
-    
-    // Thông báo cho các tab khác về việc logout
-    window.dispatchEvent(new Event('storage'));
+    navigate('/login');
   };
 
-  // Hàm kiểm tra session còn hiệu lực
-  const validateSession = (): boolean => {
-    const lastLoginTime = localStorage.getItem('lastLoginTime');
-    if (!lastLoginTime) return false;
-    
-    const loginTime = parseInt(lastLoginTime, 10);
-    const currentTime = Date.now();
-    const hoursSinceLogin = (currentTime - loginTime) / (1000 * 60 * 60);
-    
-    return hoursSinceLogin < 24; // 24 giờ
-  };
-
-  const value = { 
-    user, 
-    login, 
-    register, 
-    logout, 
+  const value = {
+    user,
+    login,
+    register,
+    logout,
     loading,
-    validateSession // Export thêm hàm validate nếu cần
+    isAuthenticated: !!user
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+// Hook custom để dùng context dễ dàng hơn
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };

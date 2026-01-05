@@ -1,15 +1,14 @@
 // src/pages/MusicPage.tsx
 
 import React, { useState, useEffect } from 'react';
+import axios from 'axios'; // Import trực tiếp Axios
 import Header from '../components/Header';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import EventCard from '../components/EventCard';
 
-// Import API
-import showApi from '../api/showApi';
-
-// --- QUAN TRỌNG: Định nghĩa đường dẫn gốc tới API ảnh ---
+// Cấu hình URL
+const API_URL = "https://api.momangshow.vn/api/shows";
 const API_IMAGE_BASE = "https://api.momangshow.vn/api/images";
 
 // Hàm helper format tiền
@@ -26,63 +25,69 @@ const MusicPage: React.FC = () => {
             try {
                 setLoading(true);
                 
-                // 1. Gọi API lấy tất cả Show
-                const response = await showApi.getAllShows(); 
-                const rawData = response.data; 
+                // --- GỌI TRỰC TIẾP AXIOS ---
+                const response = await axios.get(API_URL);
+                
+                // response.data là toàn bộ cục JSON trả về
+                const result = response.data;
 
-                if (!Array.isArray(rawData)) {
-                    throw new Error("Dữ liệu trả về không hợp lệ");
+                // Kiểm tra cấu trúc dựa trên JSON mẫu: { success: true, data: { content: [] } }
+                if (result.success && result.data && Array.isArray(result.data.content)) {
+                    
+                    const showList = result.data.content;
+
+                    // Map dữ liệu
+                    const mappedEvents = showList.map((show: any) => {
+                        // 1. Xử lý địa chỉ
+                        const addr = show.address || {};
+                        const fullLocation = addr.fullAddress || 
+                            [addr.specificAddress, addr.ward, addr.district, addr.province]
+                            .filter(Boolean).join(", ");
+
+                        // 2. Xử lý giá vé thấp nhất
+                        let minPrice = 0;
+                        if (show.ticketTypes && show.ticketTypes.length > 0) {
+                            minPrice = Math.min(...show.ticketTypes.map((t: any) => t.price));
+                        }
+
+                        // 3. Xử lý ảnh (Dùng bannerImageId)
+                        let imageUrl = 'https://placehold.co/600x400?text=No+Image';
+                        
+                        if (show.bannerImageId) {
+                            imageUrl = `${API_IMAGE_BASE}/${show.bannerImageId}`;
+                        } else if (show.galleryImageIds && show.galleryImageIds.length > 0) {
+                            // Nếu không có banner thì lấy ảnh đầu tiên trong gallery
+                            imageUrl = `${API_IMAGE_BASE}/${show.galleryImageIds[0]}`;
+                        }
+
+                        // 4. Return object chuẩn cho EventCard
+                        return {
+                            id: show.id,
+                            title: show.name, 
+                            date: show.startTime, // "2024-12-31T20:00:00"
+                            location: fullLocation || "Đang cập nhật",
+                            image: imageUrl,
+                            price: minPrice,
+                            formattedPrice: minPrice === 0 ? "Miễn phí" : formatCurrency(minPrice),
+                            description: show.description,
+                            status: show.status
+                        };
+                    });
+
+                    // Sắp xếp theo thời gian (Mới nhất lên đầu)
+                    const sortedEvents = mappedEvents.sort((a: any, b: any) => 
+                        new Date(b.date).getTime() - new Date(a.date).getTime()
+                    );
+                    
+                    setEvents(sortedEvents);
+                } else {
+                    console.warn("API response format invalid:", result);
+                    setErrorMsg("Dữ liệu trả về không đúng định dạng.");
                 }
 
-                // 2. Map dữ liệu (Chuẩn hóa)
-                const mappedEvents = rawData.map((show: any) => {
-                    // Xử lý địa chỉ
-                    const addr = show.address || {};
-                    const fullLocation = addr.fullAddress || 
-                        [addr.specificAddress, addr.ward, addr.district, addr.province]
-                        .filter(Boolean).join(", ");
-
-                    // Xử lý giá vé thấp nhất
-                    let minPrice = 0;
-                    if (show.ticketTypes && show.ticketTypes.length > 0) {
-                        minPrice = Math.min(...show.ticketTypes.map((t: any) => t.price));
-                    }
-
-                    // --- XỬ LÝ ẢNH (QUAN TRỌNG) ---
-                    let imageUrl = 'https://placehold.co/600x400?text=No+Image'; // Ảnh mặc định
-                    
-                    if (show.images && show.images.length > 0) {
-                        const firstImg = show.images[0];
-                        // Lấy ID ảnh từ object showImage
-                        const imageId = firstImg.imageFileId || firstImg.id || firstImg;
-                        // Ghép link hoàn chỉnh
-                        imageUrl = `${API_IMAGE_BASE}/${imageId}`;
-                    }
-
-                    return {
-                        id: show.id,
-                        title: show.name, 
-                        date: show.startTime,
-                        location: fullLocation || "Đang cập nhật",
-                        image: imageUrl,
-                        price: minPrice,
-                        formattedPrice: minPrice === 0 ? "Miễn phí" : formatCurrency(minPrice),
-                        description: show.description
-                    };
-                });
-
-                // 3. Sắp xếp: Mới nhất lên đầu
-                const sortedEvents = mappedEvents.sort((a: any, b: any) => 
-                    new Date(b.date).getTime() - new Date(a.date).getTime()
-                );
-
-                // (Tùy chọn) Nếu muốn lọc chỉ lấy sự kiện âm nhạc, bạn có thể filter theo genre
-                // const musicOnly = sortedEvents.filter(e => e.genre === 'Music');
-                
-                setEvents(sortedEvents);
             } catch (error: any) {
                 console.error("Failed to fetch music events:", error);
-                setErrorMsg("Không thể tải danh sách sự kiện. Vui lòng thử lại sau.");
+                setErrorMsg("Không thể tải danh sách sự kiện. Vui lòng kiểm tra kết nối.");
             } finally {
                 setLoading(false);
             }
@@ -92,7 +97,7 @@ const MusicPage: React.FC = () => {
     }, []);
 
     return (
-        <div className="bg-gray-50 min-h-screen flex flex-col">
+        <div className="bg-gray-50 min-h-screen flex flex-col relative">
             <Header />
             <Navbar />
             <main className="flex-grow">
@@ -138,6 +143,27 @@ const MusicPage: React.FC = () => {
                 </div>
             </main>
             <Footer />
+
+            {/* 👇 FLOAT BUTTON ZALO 👇 */}
+            <a
+                href="https://zalo.me/0963310889" // ⚠️ Thay số Zalo của bạn vào đây
+                target="_blank"
+                rel="noopener noreferrer"
+                className="fixed bottom-8 right-8 z-50 group"
+                title="Chat Zalo ngay"
+            >
+                <div className="relative flex items-center justify-center w-14 h-14 bg-blue-600 rounded-full shadow-2xl hover:scale-110 transition-transform duration-300 ring-4 ring-white">
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75 animate-ping"></span>
+                    <img 
+                        src="/zalo.webp" 
+                        alt="Zalo" 
+                        className="w-8 h-8 object-contain relative z-10" 
+                    />
+                    <span className="absolute right-full mr-3 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                        Tư vấn ngay
+                    </span>
+                </div>
+            </a>
         </div>
     );
 };

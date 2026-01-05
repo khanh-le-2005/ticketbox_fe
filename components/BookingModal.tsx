@@ -1,135 +1,86 @@
-// src/components/BookingModal.tsx
-
 import React, { useState } from 'react';
-import { Event, BookingDetails, ContactInfo, TicketSelection } from '../types';
+import { TicketSelection } from '../types';
 import TicketSelectionModal from './TicketSelectionModal';
-import ContactInfoModal from './ContactInfoModal';
-import OtpVerificationModal from './OtpVerificationModal';
-// Đã XÓA import QrVerificationModal để hết lỗi
+import ContactInfoModal, { ContactData } from './ContactInfoModal'; // Import type ContactData từ file mới
 import EventReceiptModal from './EventReceiptModal';
-import BookingSuccessToast from './BookingSuccessToast';
+import PaymentStepModal from './PaymentStepModal';
+import BookingApi, { CreateBookingRequest } from '../api/bookingApi';
 
-import { useAuth } from '../hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
-import { BookingAPI } from '../api/bookingApi'; 
-
-interface BookingModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    event: Event;
-}
-
-// Các bước đặt vé
 enum BookingStep {
     TICKET_SELECTION,
     CONTACT_INFO,
-    OTP_VERIFICATION,
+    PAYMENT,
     RECEIPT
-    // Đã XÓA bước QR_VERIFICATION
 }
 
-const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, event }) => {
-    const { user } = useAuth();
-    // const navigate = useNavigate(); // Nếu không dùng navigate trong file này thì có thể xóa luôn
-
+const BookingModal: React.FC<{isOpen: boolean; onClose: () => void; event: any}> = ({ isOpen, onClose, event }) => {
     const [currentStep, setCurrentStep] = useState<BookingStep>(BookingStep.TICKET_SELECTION);
     const [ticketSelection, setTicketSelection] = useState<TicketSelection>({});
-    const [totalPrice, setTotalPrice] = useState(0);
-    const [contactInfo, setContactInfo] = useState<ContactInfo>({ phone: '', email: '' });
-    const [bookingResult, setBookingResult] = useState<BookingDetails | null>(null);
-    const [showSuccessToast, setShowSuccessToast] = useState(false);
-    const [isConfirming, setIsConfirming] = useState(false);
+    const [bookingResult, setBookingResult] = useState<any>(null);
 
-    // --- 1. CHỌN VÉ XONG ---
-    const handleTicketConfirm = (selection: TicketSelection, price: number) => {
+    // Helper tạo Request ID
+    const generateRequestId = () => {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+            var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    };
+
+    const handleTicketConfirm = (selection: TicketSelection) => {
         setTicketSelection(selection);
-        setTotalPrice(price);
         setCurrentStep(BookingStep.CONTACT_INFO);
     };
 
-    // --- 2. NHẬP THÔNG TIN XONG ---
-    const handleContactConfirm = (info: ContactInfo) => {
-        setContactInfo(info);
-        setCurrentStep(BookingStep.OTP_VERIFICATION);
-    };
-
-    // --- 3. XÁC THỰC OTP XONG -> GỌI API ĐẶT VÉ ---
-    const handleOtpConfirm = async () => {
-        setIsConfirming(true);
+    // --- SỬA LOGIC: KHÔNG CÒN OTP ---
+    const handleContactAndBooking = async (data: ContactData) => {
         try {
-            // Chuẩn bị dữ liệu
-            const ticketOrders = Object.entries(ticketSelection)
-                .filter(([, qty]) => (qty as number) > 0)
-                .map(([tierName, qty]) => ({
-                    ticketTypeName: tierName, 
-                    quantity: Number(qty)
-                }));
+            const cleanShowId = String(event.id);
+            if (!cleanShowId || cleanShowId === "NaN") { alert("Lỗi ID sự kiện"); return; }
 
-            const bookingPayload = {
-                showId: event.id,
-                customerName: user?.email || "Khách hàng",
-                customerEmail: contactInfo.email,
-                customerPhone: contactInfo.phone,
-                ticketOrders: ticketOrders
+            const payload: CreateBookingRequest = {
+                showId: cleanShowId,
+                customerName: data.name,
+                customerEmail: data.email,
+                customerPhone: data.phone,
+                otp: data.otp, // Gửi OTP từ form
+                requestId: generateRequestId(),
+                tickets: Object.entries(ticketSelection).map(([code, qty]) => ({
+                    ticketTypeCode: code,
+                    quantity: Number(qty)
+                })).filter(t => t.quantity > 0)
             };
 
             // Gọi API
-            const res = await BookingAPI.createBooking(bookingPayload);
-            const newBooking = res.data;
+            const res = await BookingApi.createBooking(payload);
 
-            // Map kết quả
-            const finalDetails: BookingDetails = {
-                bookingId: newBooking.bookingCode || "BK-" + Date.now(),
-                event: event,
-                ticketSelection: ticketSelection,
-                tickets: newBooking.tickets?.map((t: any) => ({
-                    code: t.ticketCode,
-                    tierName: t.ticketTypeName
-                })) || [],
-                totalPrice: newBooking.totalAmount || totalPrice,
-                contactInfo: contactInfo,
-                timestamp: new Date().toISOString()
-            };
+            if (res && res.success) {
+                setBookingResult(res.data);
+                setCurrentStep(BookingStep.PAYMENT); // Chuyển sang thanh toán QR luôn
+            } else {
+                alert(res.message || "Đặt vé thất bại");
+            }
 
-            setBookingResult(finalDetails);
-            
-            // Lưu local storage (tùy chọn)
-            const currentBookings = JSON.parse(localStorage.getItem('myEventBookings') || '[]');
-            localStorage.setItem('myEventBookings', JSON.stringify([finalDetails, ...currentBookings]));
-
-            setShowSuccessToast(true);
-            setTimeout(() => setShowSuccessToast(false), 3000);
-            setCurrentStep(BookingStep.RECEIPT);
-
-        } catch (error) {
+        } catch (error: any) {
             console.error("Lỗi đặt vé:", error);
-            alert("Đặt vé thất bại. Vui lòng thử lại.");
-        } finally {
-            setIsConfirming(false);
+            const msg = error.response?.data?.message || "Lỗi kết nối server";
+            alert(`❌ ${msg}`);
         }
     };
 
-    // --- 4. ĐÓNG MODAL ---
-    const handleCloseAll = () => {
-        setCurrentStep(BookingStep.TICKET_SELECTION);
-        onClose();
+    const handlePaymentSuccess = () => {
+        setCurrentStep(BookingStep.RECEIPT);
     };
 
     if (!isOpen) return null;
 
     return (
         <>
-            <BookingSuccessToast 
-                message="Đặt vé thành công! Vui lòng kiểm tra email." 
-                isVisible={showSuccessToast} 
-            />
-
             {currentStep === BookingStep.TICKET_SELECTION && (
                 <TicketSelectionModal
                     isOpen={true}
                     onClose={onClose}
                     onConfirm={handleTicketConfirm}
-                    ticketTiers={event.ticketTiers || []}
+                    ticketTiers={event.ticketTiers}
                     eventName={event.title}
                 />
             )}
@@ -137,25 +88,24 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, event }) =
             {currentStep === BookingStep.CONTACT_INFO && (
                 <ContactInfoModal
                     isOpen={true}
-                    onClose={onClose}
-                    onConfirm={handleContactConfirm}
+                    onClose={() => setCurrentStep(BookingStep.TICKET_SELECTION)}
+                    onConfirm={handleContactAndBooking} // Gọi API luôn, không qua bước OTP
                 />
             )}
 
-            {currentStep === BookingStep.OTP_VERIFICATION && (
-                <OtpVerificationModal
+            {currentStep === BookingStep.PAYMENT && (
+                <PaymentStepModal
                     isOpen={true}
                     onClose={onClose}
-                    onConfirm={handleOtpConfirm}
-                    contactInfo={contactInfo}
+                    paymentData={bookingResult}
+                    onPaymentSuccess={handlePaymentSuccess}
                 />
             )}
             
-            {/* Bước RECEIPT: Hiển thị hóa đơn cuối cùng */}
-            {currentStep === BookingStep.RECEIPT && bookingResult && (
+            {currentStep === BookingStep.RECEIPT && (
                 <EventReceiptModal
                     isOpen={true}
-                    onClose={handleCloseAll}
+                    onClose={onClose}
                     details={bookingResult}
                 />
             )}

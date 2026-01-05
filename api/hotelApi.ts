@@ -1,0 +1,185 @@
+// import axiosClient from "./axiosClient"; // Check lại viết hoa/thường tên file này
+// import { ApiResponse, RoomTypePayload, RoomTypeResponse } from '../type/room.types';
+// import { Hotel, CreateHotelRequest, UpdateHotelRequest, UploadResponse } from "@/type";
+
+// const hotelApi = {
+//   getAll: () => axiosClient.get<ApiResponse<Hotel[]>>("/hotels"),
+
+//   getById: (id: string) => axiosClient.get<ApiResponse<Hotel>>(`/hotels/${id}`),
+
+//   create: (data: CreateHotelRequest) =>
+//     axiosClient.post<ApiResponse<Hotel>>("/hotels", data),
+
+//   update: (id: string, data: UpdateHotelRequest) =>
+//     axiosClient.put<ApiResponse<Hotel>>(`/hotels/${id}`, data),
+
+//   delete: (id: string) => axiosClient.delete<ApiResponse<any>>(`/hotels/${id}`),
+
+//   uploadImage: (file: File) => {
+//     const formData = new FormData();
+//     formData.append("file", file);
+//     return axiosClient.post<ApiResponse<UploadResponse>>(
+//       "/media/upload",
+//       formData,
+//       {
+//         headers: { "Content-Type": "multipart/form-data" },
+//       }
+//     );
+//   },
+
+//   search: (keyword: string) =>
+//     axiosClient.get<ApiResponse<Hotel[]>>("/hotels", { params: { keyword } }),
+// };
+
+
+
+// export default hotelApi;
+
+
+import axiosClient from "./axiosClient"; // Đảm bảo đường dẫn đúng file axiosClient của bạn
+import { 
+  ApiResponse, 
+  Hotel, 
+  CreateHotelRequest, 
+  UpdateHotelRequest, 
+  AvailabilityResponse,
+  CalendarDayItem
+} from "@/type"; // Đảm bảo đã export đủ các type này trong file type chung
+
+// Cấu hình URL gốc để ghép link ảnh
+export const BASE_API_URL = "https://api.momangshow.vn/api";
+export const IMAGE_BASE_URL = `${BASE_API_URL}/images`;
+
+const hotelApi = {
+  // =================================================================
+  // 1. QUẢN LÝ KHÁCH SẠN (CRUD)
+  // =================================================================
+
+  /**
+   * Lấy danh sách khách sạn (có hỗ trợ tìm kiếm & phân trang)
+   * GET /api/hotels?page=0&size=10&keyword=...
+   */
+  getAll: (params?: { page?: number; size?: number; keyword?: string }) => {
+    return axiosClient.get<ApiResponse<any>>("/hotels", { params });
+  },
+
+  /**
+   * Lấy chi tiết khách sạn theo ID
+   * GET /api/hotels/{id}
+   */
+  getById: (id: string) => {
+    return axiosClient.get<ApiResponse<Hotel>>(`/hotels/${id}`);
+  },
+
+  /**
+   * Tạo khách sạn mới (Bao gồm upload ảnh và thông tin)
+   * POST /api/hotels
+   * Content-Type: multipart/form-data
+   */
+  create: (files: File[], data: CreateHotelRequest) => {
+    const formData = new FormData();
+
+    // 1. Append file ảnh
+    files.forEach((file) => {
+      formData.append("images", file);
+    });
+
+    // 2. Append dữ liệu JSON (dưới dạng String) vào key 'data'
+    formData.append("data", JSON.stringify(data));
+
+    return axiosClient.post<ApiResponse<Hotel>>("/hotels", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+  },
+
+  /**
+   * Cập nhật thông tin khách sạn
+   * PUT /api/hotels/{id}
+   */
+  update: (id: string, data: UpdateHotelRequest) => {
+    return axiosClient.put<ApiResponse<Hotel>>(`/hotels/${id}`, data);
+  },
+
+  /**
+   * Xóa khách sạn
+   * DELETE /api/hotels/{id}
+   */
+  delete: (id: string) => {
+    return axiosClient.delete<ApiResponse<any>>(`/hotels/${id}`);
+  },
+
+  // =================================================================
+  // 2. MEDIA & HÌNH ẢNH
+  // =================================================================
+
+  /**
+   * Upload ảnh lẻ (Dùng cho các trường hợp upload rời)
+   * POST /api/images
+   */
+  uploadImage: async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res: any = await axiosClient.post("/images", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      // Kiểm tra logic thành công của Backend
+      if (res.success === 200 || res.success === true) {
+        const imageId = res.data; 
+        return {
+          id: imageId,
+          url: `${IMAGE_BASE_URL}/${imageId}`
+        };
+      } else {
+        throw new Error(res.message || "Upload thất bại");
+      }
+    } catch (error) {
+      console.error("Lỗi upload ảnh:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Helper: Lấy URL ảnh từ ID (hoặc mảng ID)
+   */
+  getImageUrl: (idOrIds: string | number | number[] | undefined) => {
+    if (!idOrIds) return "https://placehold.co/600x400?text=No+Image";
+    
+    // Nếu là mảng, lấy phần tử đầu tiên
+    const id = Array.isArray(idOrIds) ? idOrIds[0] : idOrIds;
+    
+    const strId = String(id);
+    if (strId.startsWith("http")) return strId; // Nếu đã là link full
+    return `${IMAGE_BASE_URL}/${id}`;
+  },
+
+  // =================================================================
+  // 3. BOOKING & AVAILABILITY (TÍNH NĂNG MỚI)
+  // =================================================================
+
+  /**
+   * Kiểm tra phòng trống theo thời gian thực (Realtime Check)
+   * GET /api/hotels/{hotelId}/availability
+   */
+  checkAvailability: (hotelId: string, roomTypeCode: string, checkIn: string, checkOut: string) => {
+    return axiosClient.get<ApiResponse<AvailabilityResponse>>(`/hotels/${hotelId}/availability`, {
+        params: { roomTypeCode, checkIn, checkOut }
+    });
+  },
+
+  /**
+   * Lấy dữ liệu lịch và giá cho cả tháng (Calendar View)
+   * GET /api/hotels/{hotelId}/calendar
+   */
+  getCalendar: (hotelId: string, roomTypeCode: string, month: number, year: number) => {
+    return axiosClient.get<ApiResponse<CalendarDayItem[]>>(`/hotels/${hotelId}/calendar`, {
+        params: { roomTypeCode, month, year }
+    });
+  }
+};
+
+export default hotelApi;

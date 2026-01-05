@@ -40,7 +40,7 @@ const Footer: React.FC = () => {
                 </div>
             </div>
             <div className="bg-gray-900 py-4">
-                <p className="text-center text-sm text-gray-500">&copy; {new Date().getFullYear()} TicketGo Clone. All rights reserved.</p>
+                <p className="text-center text-sm text-gray-500">&copy; {new Date().getFullYear()} momangshow. All rights reserved.</p>
             </div>
         </footer>
     );

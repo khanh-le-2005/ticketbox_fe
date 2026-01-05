@@ -23,7 +23,7 @@ interface EventCardProps {
 }
 
 const EventCard: React.FC<EventCardProps> = ({ event, className = '', imageClassName = 'h-48' }) => {
-  
+  console.log("Dữ liệu event đang nhận:", event); 
   // Xử lý ngày tháng
   let day = "--";
   let month = "--";

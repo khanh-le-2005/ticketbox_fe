@@ -1,230 +1,228 @@
 // src/pages/MyTicketsPage.tsx
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
-import { FaTicketAlt, FaBed, FaMapMarkerAlt, FaCalendarAlt, FaSearch } from 'react-icons/fa';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { FaTicketAlt, FaMapMarkerAlt, FaCalendarAlt, FaSearch, FaUser, FaQrcode, FaSignInAlt } from 'react-icons/fa';
 import Header from '../components/Header';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-// Import các Type nếu bạn đã định nghĩa trong file types.ts
-// import { EventBookingDetails, BookingDetails } from '../types';
+import { useAuth } from '../hooks/useAuth'; 
+import BookingApi from '../api/bookingApi'; 
+// Đảm bảo BookingApi.getHistory() gọi đúng: axiosClient.get('/bookings/my-history');
 
-// Định nghĩa lại interface nội bộ nếu cần để tránh lỗi type checker
-interface DisplayTicketItem {
-    uniqueId: string;
-    bookingId: string;
-    ticketCode: string;
-    tierName: string;
-    eventTitle: string;
-    eventImage: string;
-    eventDate: string; // Chuỗi ISO
-    eventLocation: string;
-    priceString: string;
+interface TicketItem {
+    id: string; // Booking ID gốc
+    showName: string;
+    showTime: string;
+    address: string;
+    totalAmount: number;
+    status: string;
+    bookingDate: string;
 }
 
 const MyTicketsPage: React.FC = () => {
-    // Dữ liệu Demo hoặc lấy từ localStorage (Bạn có thể thay bằng gọi API thật sau này)
-    const [eventBookings, setEventBookings] = useState<any[]>([]);
-    const [hotelBookings, setHotelBookings] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { user } = useAuth(); // Lấy user từ Context
+    const navigate = useNavigate();
+    const [tickets, setTickets] = useState<TicketItem[]>([]);
+    const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
 
-    useEffect(() => {
+    // Hàm gọi API lấy dữ liệu
+    const fetchHistory = async () => {
+        // Nếu chưa đăng nhập thì không gọi API này (vì sẽ lỗi 401)
+        if (!user) return; 
+
         try {
-            // Lấy dữ liệu từ localStorage (Nơi lưu tạm khi đặt vé thành công)
-            const storedEventBookings = JSON.parse(localStorage.getItem('myEventBookings') || '[]');
-            const storedHotelBookings = JSON.parse(localStorage.getItem('myHotelBookings') || '[]');
+            setLoading(true);
+            console.log("Đang gọi API: /bookings/my-history");
+        
+            const res: any = await BookingApi.getHistory();
             
-            setEventBookings(storedEventBookings);
-            setHotelBookings(storedHotelBookings);
+            console.log("Dữ liệu trả về:", res);
+
+            // Xử lý dữ liệu trả về theo đúng cấu trúc JSON bạn cung cấp
+            // Cấu trúc: { success: true, data: { content: [...] } }
+            if (res.success && res.data && Array.isArray(res.data.content)) {
+                setTickets(res.data.content);
+            } else {
+                setTickets([]);
+            }
         } catch (error) {
-            console.error("Failed to load bookings", error);
+            console.error("Lỗi khi tải vé:", error);
+            // Nếu lỗi 401 (Hết hạn token) -> Logout
+            if (error === 401) {
+                navigate('/login');
+            }
         } finally {
             setLoading(false);
         }
-    }, []);
+    };
 
-    // Xử lý làm phẳng danh sách vé để hiển thị từng vé một
-    const allDisplayTickets = useMemo(() => {
-        const tickets: DisplayTicketItem[] = [];
-        
-        eventBookings.forEach(booking => {
-            const eventInfo = booking.event || {};
-            const contact = booking.contactInfo || {};
+    // Gọi API khi component load hoặc khi user thay đổi
+    useEffect(() => {
+        fetchHistory();
+    }, [user]);
 
-            // Trường hợp 1: Có danh sách vé chi tiết (ticket codes)
-            if (booking.tickets && booking.tickets.length > 0) {
-                booking.tickets.forEach((ticket: any, index: number) => {
-                    // Tìm giá tiền
-                    const tier = eventInfo.ticketTiers?.find((t: any) => t.name === ticket.tierName);
-                    const price = tier ? tier.price.toLocaleString('vi-VN') + ' đ' : "0 đ";
+    // Format tiền tệ
+    const formatCurrency = (amount: number) => {
+        return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+    };
 
-                    tickets.push({
-                        uniqueId: `${booking.bookingId}-${index}`,
-                        bookingId: booking.bookingId,
-                        ticketCode: ticket.code,
-                        tierName: ticket.tierName,
-                        eventTitle: eventInfo.title,
-                        eventImage: eventInfo.image || eventInfo.imageUrl || 'https://placehold.co/600x400',
-                        eventDate: eventInfo.date, // ISO String hoặc object cũ
-                        eventLocation: eventInfo.location || eventInfo.fullLocation,
-                        priceString: price
-                    });
-                });
-            } 
-            // Trường hợp 2: Chỉ có số lượng (Fallback)
-            else if (booking.ticketSelection) {
-                Object.entries(booking.ticketSelection).forEach(([tierName, quantity]) => {
-                    const qty = Number(quantity);
-                    if (qty > 0) {
-                        for(let i=0; i < qty; i++) {
-                            tickets.push({
-                                uniqueId: `${booking.bookingId}-${tierName}-${i}`,
-                                bookingId: booking.bookingId,
-                                ticketCode: `${booking.bookingId}-${i+1}`,
-                                tierName: tierName,
-                                eventTitle: eventInfo.title,
-                                eventImage: eventInfo.image || 'https://placehold.co/600x400',
-                                eventDate: eventInfo.date,
-                                eventLocation: eventInfo.location,
-                                priceString: "---"
-                            });
-                        }
-                    }
-                });
-            }
+    // Format ngày giờ
+    const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleString('vi-VN', {
+            hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric'
         });
+    };
 
-        // Sắp xếp mới nhất lên đầu
-        return tickets.sort((a, b) => b.bookingId.localeCompare(a.bookingId));
-    }, [eventBookings]);
+    // Tạo link QR Code
+    const generateQrCodeUrl = (data: string) => 
+        `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(data)}&margin=5`;
 
-    // Lọc theo từ khóa
-    const filteredTickets = allDisplayTickets.filter(ticket => 
-        ticket.ticketCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        ticket.eventTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        ticket.bookingId.toLowerCase().includes(searchQuery.toLowerCase())
+    // Lọc danh sách hiển thị
+    const filteredTickets = tickets.filter(t => 
+        t.showName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.id.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    // Hàm format ngày tháng an toàn
-    const formatDateSafe = (dateInput: any) => {
-        try {
-            if (typeof dateInput === 'string') {
-                const d = new Date(dateInput);
-                return d.toLocaleDateString('vi-VN');
-            }
-            if (dateInput && dateInput.day) {
-                return `${dateInput.day}/${dateInput.month}/${dateInput.year}`;
-            }
-            return "Đang cập nhật";
-        } catch { return "---"; }
-    };
-
-    const generateQrCodeUrl = (data: string) => {
-        return `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(data)}&margin=5`;
-    };
-
-    if (loading) {
-        return (
-            <div className="bg-gray-50 min-h-screen flex justify-center items-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-orange-500"></div>
-            </div>
-        );
-    }
-
     return (
-        <div className="bg-gray-50 min-h-screen">
+        <div className="bg-gray-50 min-h-screen flex flex-col">
             <Header />
             <Navbar />
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 border-b pb-4">
-                    <h1 className="text-3xl font-bold text-gray-800">Vé Của Tôi</h1>
-                    <div className="relative w-full md:w-96">
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Tìm kiếm mã vé, tên sự kiện..."
-                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                        />
-                        <FaSearch className="absolute left-3 top-3 text-gray-400" />
+            
+            <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+                
+                <div className="mb-8 border-b pb-4 flex justify-between items-center">
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-800">Vé Của Tôi</h1>
+                        <p className="text-gray-500 mt-1">Quản lý và xem lại lịch sử đặt vé của bạn.</p>
                     </div>
+                    {user && (
+                        <button 
+                            onClick={fetchHistory}
+                            className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                        >
+                            Làm mới
+                        </button>
+                    )}
                 </div>
 
-                {filteredTickets.length === 0 ? (
-                    <div className="text-center py-20 bg-white rounded-lg shadow-sm">
-                        <FaTicketAlt className="mx-auto text-6xl text-gray-200 mb-4" />
-                        <h2 className="text-xl font-semibold text-gray-600">Bạn chưa có vé nào</h2>
-                        <p className="text-gray-500 mt-2">Hãy đặt vé ngay để tham gia các sự kiện hấp dẫn!</p>
-                        <Link to="/" className="mt-6 inline-block bg-orange-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-orange-600 transition-colors">
-                            Khám phá sự kiện
-                        </Link>
+                {/* --- TRƯỜNG HỢP 1: CHƯA ĐĂNG NHẬP --- */}
+                {!user ? (
+                    <div className="flex flex-col items-center justify-center py-16 bg-white rounded-lg shadow-sm border border-gray-200">
+                        <div className="bg-orange-100 p-4 rounded-full mb-4">
+                            <FaUser className="text-4xl text-orange-500" />
+                        </div>
+                        <h2 className="text-xl font-bold text-gray-800 mb-2">Bạn chưa đăng nhập</h2>
+                        <p className="text-gray-500 text-center max-w-md mb-6">
+                            Để xem lịch sử đặt vé (My History), bạn cần đăng nhập vào tài khoản đã dùng để mua vé.
+                        </p>
+                        <div className="flex gap-4">
+                            <Link to="/login" className="flex items-center bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition font-medium">
+                                <FaSignInAlt className="mr-2" /> Đăng nhập ngay
+                            </Link>
+                            <Link to="/" className="flex items-center border border-gray-300 px-6 py-2 rounded-lg hover:bg-gray-50 transition text-gray-700 font-medium">
+                                Về trang chủ
+                            </Link>
+                        </div>
+                        {/* Gợi ý nếu khách muốn tra cứu mà ko cần login (Cần Backend hỗ trợ API khác) */}
+                        <p className="mt-8 text-sm text-gray-400 italic">
+                            *Nếu bạn mua vé không cần tài khoản, vui lòng kiểm tra Email để lấy vé.
+                        </p>
                     </div>
                 ) : (
-                    <div className="space-y-8">
-                        <h2 className="text-xl font-bold text-gray-700 flex items-center">
-                            <FaTicketAlt className="mr-2 text-orange-500" /> Vé Sự Kiện ({filteredTickets.length})
-                        </h2>
-
-                        <div className="grid grid-cols-1 gap-6">
-                            {filteredTickets.map((ticket) => (
-                                <div key={ticket.uniqueId} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col md:flex-row hover:shadow-md transition-shadow">
-                                    
-                                    {/* Ảnh sự kiện */}
-                                    <div className="w-full md:w-1/4 h-48 md:h-auto relative bg-gray-100">
-                                        <img 
-                                            src={ticket.eventImage} 
-                                            alt={ticket.eventTitle} 
-                                            className="w-full h-full object-cover"
-                                            onError={(e) => e.currentTarget.src = 'https://placehold.co/600x400?text=No+Image'}
-                                        />
-                                    </div>
-
-                                    {/* Thông tin vé */}
-                                    <div className="p-5 flex-grow flex flex-col justify-center">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div>
-                                                <span className="text-xs text-gray-500 uppercase font-bold tracking-wider">Mã đặt vé</span>
-                                                <div className="font-mono text-sm text-gray-700 bg-gray-100 px-2 py-1 rounded inline-block ml-2">{ticket.bookingId}</div>
-                                            </div>
-                                            <span className="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded">Đã thanh toán</span>
-                                        </div>
-                                        
-                                        <h3 className="text-xl font-bold text-indigo-700 mb-2">{ticket.eventTitle}</h3>
-
-                                        <div className="text-sm text-gray-600 space-y-1">
-                                            <p className="flex items-center"><FaCalendarAlt className="mr-2 text-gray-400"/> {formatDateSafe(ticket.eventDate)}</p>
-                                            <p className="flex items-center"><FaMapMarkerAlt className="mr-2 text-gray-400"/> {ticket.eventLocation}</p>
-                                        </div>
-
-                                        <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center">
-                                            <div>
-                                                <span className="block text-xs text-gray-500">Loại vé</span>
-                                                <span className="font-bold text-gray-800">{ticket.tierName}</span>
-                                            </div>
-                                            <div className="text-right">
-                                                <span className="block text-xs text-gray-500">Giá vé</span>
-                                                <span className="font-bold text-orange-600 text-lg">{ticket.priceString}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* QR Code */}
-                                    <div className="p-6 bg-gray-50 border-t md:border-t-0 md:border-l border-gray-200 flex flex-col items-center justify-center min-w-[200px]">
-                                        <div className="bg-white p-2 rounded shadow-sm mb-2">
-                                            <img 
-                                                src={generateQrCodeUrl(ticket.ticketCode)} 
-                                                alt="QR Code" 
-                                                className="w-32 h-32"
-                                            />
-                                        </div>
-                                        <span className="font-mono font-bold text-sm text-gray-800 tracking-widest">{ticket.ticketCode}</span>
-                                        <p className="text-[10px] text-gray-400 mt-1">Quét mã để vào cổng</p>
-                                    </div>
+                    /* --- TRƯỜNG HỢP 2: ĐÃ ĐĂNG NHẬP --- */
+                    <>
+                        {loading ? (
+                            <div className="flex justify-center py-20">
+                                <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-orange-500"></div>
+                            </div>
+                        ) : tickets.length === 0 ? (
+                            <div className="text-center py-20 bg-white rounded-lg shadow-sm">
+                                <FaTicketAlt className="mx-auto text-6xl text-gray-200 mb-4" />
+                                <h2 className="text-xl font-semibold text-gray-600">Bạn chưa có đơn hàng nào</h2>
+                                <Link to="/" className="mt-6 inline-block bg-orange-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-orange-600 transition-colors">
+                                    Mua vé ngay
+                                </Link>
+                            </div>
+                        ) : (
+                            <div className="space-y-6">
+                                {/* Thanh tìm kiếm */}
+                                <div className="relative max-w-md mb-6">
+                                    <input
+                                        type="text"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        placeholder="Tìm theo tên show hoặc mã đơn..."
+                                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                    />
+                                    <FaSearch className="absolute left-3 top-3 text-gray-400" />
                                 </div>
-                            ))}
-                        </div>
-                    </div>
+
+                                {/* Danh sách vé */}
+                                {filteredTickets.map((ticket) => (
+                                    <div key={ticket.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col md:flex-row hover:shadow-md transition-shadow">
+                                        {/* Ảnh giả định (Vì API JSON chưa trả về ảnh) */}
+                                        <div className="w-full md:w-48 h-48 bg-gray-200 relative flex items-center justify-center text-gray-400">
+                                             {/* Nếu sau này API có ảnh, thay src vào đây */}
+                                            <FaTicketAlt size={40} />
+                                        </div>
+
+                                        {/* Thông tin vé */}
+                                        <div className="p-5 flex-grow flex flex-col justify-center">
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs font-mono font-bold">
+                                                        ID: {ticket.id.slice(-6).toUpperCase()}
+                                                    </span>
+                                                    <span className={`px-2 py-1 rounded text-xs font-bold ${ticket.status === 'CONFIRMED' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                                        {ticket.status === 'CONFIRMED' ? 'ĐÃ THANH TOÁN' : 'CHỜ XỬ LÝ'}
+                                                    </span>
+                                                </div>
+                                                <span className="text-xs text-gray-400">
+                                                    Đặt ngày: {new Date(ticket.bookingDate).toLocaleDateString('vi-VN')}
+                                                </span>
+                                            </div>
+                                            
+                                            <h3 className="text-xl font-bold text-indigo-700 mb-1">{ticket.showName}</h3>
+                                            
+                                            <div className="text-sm text-gray-600 space-y-2 mb-3 mt-2">
+                                                <p className="flex items-center text-gray-700">
+                                                    <FaCalendarAlt className="mr-2 text-orange-500"/> 
+                                                    <span className="font-medium">{formatDate(ticket.showTime)}</span>
+                                                </p>
+                                                <p className="flex items-start">
+                                                    <FaMapMarkerAlt className="mr-2 text-orange-500 mt-1 flex-shrink-0"/> 
+                                                    <span>{ticket.address}</span>
+                                                </p>
+                                            </div>
+
+                                            <div className="mt-auto pt-3 border-t flex justify-between items-center">
+                                                <span className="text-xs text-gray-500">Tổng tiền</span>
+                                                <span className="text-orange-600 font-bold text-lg">
+                                                    {formatCurrency(ticket.totalAmount)}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* QR Code */}
+                                        {ticket.status === 'CONFIRMED' && (
+                                            <div className="p-4 bg-gray-50 border-l flex flex-col items-center justify-center min-w-[150px]">
+                                                <div className="bg-white p-1 rounded shadow-sm mb-2">
+                                                    {/* Dùng Booking ID làm mã QR */}
+                                                    <img src={generateQrCodeUrl(ticket.id)} alt="QR" className="w-24 h-24" />
+                                                </div>
+                                                <span className="text-xs text-gray-500">Check-in</span>
+                                                <button className="text-xs flex items-center text-blue-600 hover:underline mt-1">
+                                                    <FaQrcode className="mr-1"/> Phóng to
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </>
                 )}
             </main>
             <Footer />

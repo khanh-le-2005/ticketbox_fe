@@ -1,5 +1,4 @@
 // src/components/QrVerificationModal.tsx
-
 import React from 'react';
 import { QrVerificationModalProps } from '../types';
 import { FaTimes, FaReceipt, FaQrcode } from 'react-icons/fa';
@@ -11,15 +10,20 @@ const QrVerificationModal: React.FC<QrVerificationModalProps> = ({
     isConfirming,
     qrCodeData,
 }) => {
-    if (!isOpen) return null;
+    if (!isOpen || !qrCodeData) return null;
 
     // Tạo QR Code từ API
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrCodeData)}&margin=10`;
+    const qrCodeUrl = React.useMemo(() => {
+        return `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(
+            qrCodeData
+        )}&margin=10`;
+    }, [qrCodeData]);
+
 
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-center p-4 backdrop-blur-sm">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-md relative animate-fade-in-up overflow-hidden">
-                
+
                 {/* Header */}
                 <div className="bg-indigo-600 p-6 text-center relative">
                     <button
@@ -44,10 +48,12 @@ const QrVerificationModal: React.FC<QrVerificationModalProps> = ({
 
                     {/* Khung chứa QR */}
                     <div className="bg-white p-2 rounded-xl inline-block border-4 border-orange-100 shadow-sm mb-6">
-                        <img 
-                            src={qrCodeUrl} 
-                            alt="Booking QR Code" 
-                            className="w-48 h-48 sm:w-56 sm:h-56 object-contain" 
+                        <img
+                            src={qrCodeUrl}
+                            alt="Booking QR Code"
+                            onError={(e) => {
+                                (e.target as HTMLImageElement).src = '/qr-fallback.png';
+                            }}
                         />
                     </div>
 
@@ -84,3 +90,5 @@ const QrVerificationModal: React.FC<QrVerificationModalProps> = ({
 };
 
 export default QrVerificationModal;
+
+

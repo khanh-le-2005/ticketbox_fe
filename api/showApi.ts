@@ -1,87 +1,217 @@
-import axiosClient from "./axiosClient"; // Đảm bảo đây là instance đã cấu hình baseURL
+// apis/api_show.ts
+import axiosClient from './axiosClient';
 
-// Interface (Giữ nguyên)
-interface ShowDTO {
-  id?: string;
-  name: string;
-  startTime: string;
-  description: string;
-  address: {
-    specificAddress: string;
-    ward: string;
-    district: string;
-    province: string;
-  };
-  artistIds: string[];
-  ticketTypes: any[];
+// ==========================================
+// INTERFACES & TYPES
+// ==========================================
+
+// src/apis/api_show.ts
+
+export interface ITicketType {
+    id?: string;
+    code: string;           // 🔥 BẮT BUỘC
+    name: string;
+    description?: string;
+    price: number;
+    totalQuantity: number;  // 🔥 SỬA: Đổi từ quantity sang totalQuantity
+    // availableQuantity: number; // Có thể backend tự tính, nhưng gửi kèm cũng được
+    active: boolean;
 }
 
-export const ShowAPI = {
-  // 1. Lấy tất cả
-  getAllShows: () => {
-    return axiosClient.get("/shows");
+// ... các phần khác giữ nguyên
+
+export interface IShowImage {
+  imageFileId: string;
+  imageContentType: string;
+  imageFileName: string;
+  displayOrder: number;
+  imageUrl?: string; 
+}
+
+export interface IShowArtist {
+  id: string;
+  name: string;
+  description?: string;
+  imageUrl?: string;
+  displayOrder?: number;
+}
+
+export interface IShowAddress {
+  specificAddress?: string;
+  province: string;
+  district: string;
+  ward: string;
+  latitude?: number;
+  longitude?: number;
+  fullAddress?: string;
+}
+
+export interface IShow {
+  id: string;
+  name: string;
+  description?: string;
+  genre?: string;
+  startTime: string; // ISO string
+  endTime: string; // ISO string
+  address: IShowAddress;
+  artists: IShowArtist[];
+  images: IShowImage[];
+  ticketTypes: ITicketType[];
+  companyId: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+  version?: number;
+}
+
+// DTOs for Request
+export interface IShowArtistDTO {
+  id?: string;
+  name: string;
+  description?: string;
+  imageUrl?: string;
+  displayOrder?: number;
+}
+
+export interface IShowAddressDTO {
+  specificAddress?: string;
+  province: string;
+  district: string;
+  ward: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+export interface IShowCreateRequest {
+  name: string;
+  description?: string;
+  genre?: string;
+  startTime: string; // ISO string
+  endTime: string; // ISO string
+  address: IShowAddressDTO;
+  artists?: IShowArtistDTO[];
+  ticketTypes?: ITicketType[];
+  companyId: string;
+}
+
+export interface IShowUpdateRequest {
+  name: string;
+  description?: string;
+  genre?: string;
+  startTime: string; // ISO string
+  endTime: string; // ISO string
+  address: IShowAddressDTO;
+  artists?: IShowArtistDTO[];
+  ticketTypes?: ITicketType[];
+  companyId: string;
+}
+
+export interface IShowSearchParams {
+  page?: number;
+  limit?: number;
+  keyword?: string;
+  companyId?: string;
+  active?: boolean;
+  startDate?: string;
+  endDate?: string;
+}
+
+// Response Types
+export interface IShowListResponse {
+  shows: IShow[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface IShowResponse {
+  show: IShow;
+  message?: string;
+}
+
+// ==========================================
+// API OBJECT
+// ==========================================
+
+const showApi = {
+  /**
+   * Lấy danh sách Show có phân trang và lọc
+   */
+  getAllShows: async (params?: IShowSearchParams): Promise<IShowListResponse> => {
+    return axiosClient.get('/shows', { params });
+    
   },
 
-  // 2. Lấy chi tiết
+  /**
+   * Lấy chi tiết Show theo ID
+   */
+  getById: async (id: string): Promise<IShow> => {
+    return axiosClient.get(`/shows/${id}`);
+  },
+
+  /**
+   * Tạo mới Show (Multipart: JSON data + Images)
+   */
+  create: async (data: IShowCreateRequest, images?: File[]): Promise<IShowResponse> => {
+    const formData = new FormData();
+    // Backend yêu cầu gửi JSON string dưới dạng field 'data'
+    formData.append('data', JSON.stringify(data));
+    
+    // Append từng file ảnh vào 'images'
+    if (images && images.length > 0) {
+      images.forEach((file) => formData.append('images', file));
+    }
+
+    return axiosClient.post('/shows', formData, {
+      headers: { 
+        'Content-Type': 'multipart/form-data' 
+      },
+    });
+  },
+
+  /**
+   * Cập nhật Show (Multipart: JSON data + Images nếu có thay đổi ảnh)
+   */
+  update: async (id: string, data: IShowUpdateRequest, images?: File[]): Promise<IShowResponse> => {
+    const formData = new FormData();
+    formData.append('data', JSON.stringify(data));
+
+    if (images && images.length > 0) {
+      images.forEach((file) => formData.append('images', file));
+    }
+
+    return axiosClient.put(`/shows/${id}`, formData, {
+      headers: { 
+        'Content-Type': 'multipart/form-data' 
+      },
+    });
+  },
+  
+  /**
+   * Xóa Show (Soft delete hoặc Hard delete tùy Backend)
+   */
+  delete: async (id: string): Promise<any> => {
+    return axiosClient.delete(`/shows/${id}`);
+  },
+  
+  /**
+   * Kích hoạt hoặc hủy kích hoạt Show (nếu cần)
+   */
+  toggleActive: async (id: string, active: boolean): Promise<any> => {
+    return axiosClient.patch(`/shows/${id}/active`, { active });
+  },
+
+
+  // 2. Lấy chi tiết show theo ID (Hàm bạn đang thiếu)
   getShowById: (id: string) => {
     return axiosClient.get(`/shows/${id}`);
   },
 
-  // 3. TẠO SHOW (ĐÃ SỬA ĐỂ KHỚP VỚI JAVA SPRING BOOT)
-  createShow: (data: ShowDTO, images: File[]) => {
-    const formData = new FormData();
-
-    // --- QUAN TRỌNG: Gói JSON vào Blob ---
-    // Backend Java yêu cầu @RequestPart("show") phải có Content-Type là application/json
-    const jsonBlob = new Blob([JSON.stringify(data)], {
-      type: "application/json",
-    });
-    
-    // Tên key phải là "show" (khớp với Controller Backend)
-    formData.append("show", jsonBlob); 
-
-    // Gửi danh sách ảnh
-    if (images && images.length > 0) {
-      images.forEach((file) => {
-        formData.append("images", file);
-      });
-    }
-
-    // Axios tự động set Content-Type là multipart/form-data khi thấy FormData
-    // Nhưng ta ghi đè để chắc chắn
-    return axiosClient.post("/shows", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
-  },
-
-  // 4. CẬP NHẬT SHOW (TƯƠNG TỰ CREATE)
-  updateShow: (id: string, data: ShowDTO, images: File[]) => {
-    const formData = new FormData();
-
-    const jsonBlob = new Blob([JSON.stringify(data)], {
-      type: "application/json",
-    });
-    formData.append("show", jsonBlob);
-
-    if (images && images.length > 0) {
-      images.forEach((file) => {
-        formData.append("images", file);
-      });
-    }
-
-    return axiosClient.put(`/shows/${id}`, formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
-  },
-
-  // 5. Xóa show
-  deleteShow: (id: string) => {
-    return axiosClient.delete(`/shows/${id}`);
-  },
+  // 3. Lấy show nổi bật (Dùng cho Slider trang chủ)
+  getFeaturedShows: () => {
+    return axiosClient.get('/shows/featured');
+  }
 };
 
-export default ShowAPI;
+
+export default showApi;

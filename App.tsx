@@ -11,6 +11,8 @@ import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import ScrollToTop from './components/ScrollToTop';
 
+
+
 // Pages
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
@@ -29,6 +31,7 @@ import MoviesPage from './pages/MoviesPage';
 import SightseeingPage from './pages/SightseeingPage';
 import SportsPage from './pages/SportsPage';
 import NewsPage from './pages/NewsPage';
+import { NewsDetailPage } from './pages/NewsDetailPage';
 
 function App() {
   return (
@@ -41,11 +44,12 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/news" element={<NewsPage />} />
-          
+
           {/* Chi tiết */}
           <Route path="/event/:id" element={<EventDetailPage />} />
           <Route path="/hotel/:id" element={<HotelDetailPage />} />
           <Route path="/booking" element={<BookingPage />} />
+          <Route path="/news/:id" element={<NewsDetailPage />} />
 
           {/* Danh mục sự kiện */}
           <Route path="/music" element={<MusicPage />} />
@@ -56,25 +60,23 @@ function App() {
           <Route path="/sports" element={<SportsPage />} />
 
           {/* --- PROTECTED ROUTES (Cần đăng nhập) --- */}
-          
+
           {/* Vé của tôi: Cần đăng nhập để lấy lịch sử vé từ API */}
-          <Route 
-            path="/my-tickets" 
+          <Route
+            path="/my-tickets"
             element={
-              <ProtectedRoute>
-                <MyTicketsPage />
-              </ProtectedRoute>
-            } 
+              <MyTicketsPage />
+            }
           />
 
           {/* Dashboard (Nếu có admin dashboard trong app này) */}
-          <Route 
-            path="/dashboard" 
+          <Route
+            path="/dashboard"
             element={
               <ProtectedRoute>
                 <DashboardPage />
               </ProtectedRoute>
-            } 
+            }
           />
 
           {/* --- 404 NOT FOUND --- */}

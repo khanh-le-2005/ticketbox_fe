@@ -1,286 +1,240 @@
+// src/pages/BookingPage.tsx
 
-import React, { useState, useEffect, useRef } from 'react';
-import Header from '../components/Header';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
-import HotelCard from '../components/HotelCard';
-import BookingModal from '../components/BookingModal';
-import BookingReceiptModal from '../components/BookingReceiptModal';
-import QrVerificationModal from '../components/QrVerificationModal';
-import ErrorToast from '../components/ErrorToast';
-import { HOTEL_DATA } from '../constants';
-import { Hotel, BookingDetails } from '../types';
-import { FaSearch, FaMapMarkerAlt, FaCalendarAlt, FaUsers } from 'react-icons/fa';
+import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from 'react-router-dom';
+import axiosClient from "../api/axiosClient";
+import Header from "../components/Header";
+import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
+import ErrorToast from "../components/ErrorToast";
+import {
+  FaSearch,
+  FaMapMarkerAlt,
+  FaBed,
+  FaBuilding,
+} from "react-icons/fa";
+import { getImageUrl } from "../api/api_image";
 
-const locations = ['Tất cả', 'Hà Nội', 'TP. Hồ Chí Minh', 'Phú Quốc', 'Hội An', 'Sa Pa', 'Nha Trang', 'Huế', 'Hạ Long', 'Đà Nẵng'];
+// --- INTERFACE ---
+interface ApiHotelResponse {
+  id: string;
+  name: string;
+  address: string;
+  description: string;
+  galleryImageIds: number[];
+  minPrice: number;
+  roomTypes?: {
+    code: string;
+    name: string;
+    totalRooms: number;
+    priceWeekday: number;
+  }[];
+}
+
+const locations = [
+  "Tất cả", "Hà Nội", "TP. Hồ Chí Minh", "Phú Quốc", 
+  "Hội An", "Đà Nẵng", "Nha Trang", "Huế", "Hạ Long"
+];
 
 const BookingPage: React.FC = () => {
-    const [destination, setDestination] = useState('Tất cả');
-    const [checkInDate, setCheckInDate] = useState('');
-    const [checkOutDate, setCheckOutDate] = useState('');
-    const [guests, setGuests] = useState(1);
-    const [toastError, setToastError] = useState('');
-    
-    // Manage hotels state to handle inventory updates
-    const [hotels, setHotels] = useState<Hotel[]>([]);
-    const [filteredHotels, setFilteredHotels] = useState<Hotel[]>([]);
-    
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [selectedHotel, setSelectedHotel] = useState<Hotel | null>(null);
-    const [isBooking, setIsBooking] = useState(false);
-    
-    // New states for QR Payment flow
-    const [showQrModal, setShowQrModal] = useState(false);
-    const [pendingBooking, setPendingBooking] = useState<BookingDetails | null>(null);
-    const [isConfirmingQr, setIsConfirmingQr] = useState(false);
+  const navigate = useNavigate();
+  
+  // --- STATE ---
+  const [hotels, setHotels] = useState<ApiHotelResponse[]>([]);
+  const [filteredHotels, setFilteredHotels] = useState<ApiHotelResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [toastError, setToastError] = useState("");
 
-    const [showReceipt, setShowReceipt] = useState(false);
-    const [bookingDetails, setBookingDetails] = useState<BookingDetails | null>(null);
+  // Search State
+  const [selectedLocation, setSelectedLocation] = useState("Tất cả");
 
-    const resultsRef = useRef<HTMLDivElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
 
-    // Initial Load of Inventory
-    useEffect(() => {
-        const inventory = JSON.parse(localStorage.getItem('hotel_inventory') || '{}');
-        const initialHotels = HOTEL_DATA.map(h => ({
-            ...h,
-            availableRooms: inventory[h.id] !== undefined ? inventory[h.id] : 10 
-        }));
-        setHotels(initialHotels);
-    }, []);
-
-    useEffect(() => {
-        if (toastError) {
-            const timer = setTimeout(() => setToastError(''), 4000); // Auto-hide after 4s
-            return () => clearTimeout(timer);
-        }
-    }, [toastError]);
-
-    useEffect(() => {
-        const results = destination === 'Tất cả'
-            ? hotels
-            : hotels.filter(hotel =>
-                hotel.location.toLowerCase() === destination.toLowerCase()
-            );
-        setFilteredHotels(results);
-    }, [destination, hotels]);
-
-    const handleBookNow = (hotel: Hotel) => {
-        if (!checkInDate || !checkOutDate) {
-            setToastError('Vui lòng chọn ngày nhận phòng và trả phòng.');
-            return;
-        }
-
-        if (new Date(checkOutDate) <= new Date(checkInDate)) {
-            setToastError('Ngày trả phòng phải sau ngày nhận phòng.');
-            return;
-        }
+  // --- FETCH DATA ---
+  useEffect(() => {
+    const fetchHotels = async () => {
+      setIsLoading(true);
+      try {
+        const res: any = await axiosClient.get("/hotels");
+        let hotelList: ApiHotelResponse[] = [];
         
-        if (hotel.availableRooms <= 0) {
-             setToastError('Khách sạn này đã hết phòng.');
-             return;
-        }
+        if (res?.data?.content) hotelList = res.data.content;
+        else if (Array.isArray(res?.data)) hotelList = res.data;
+        else if (Array.isArray(res)) hotelList = res;
 
-        setSelectedHotel(hotel);
-        setIsModalOpen(true);
+        setHotels(hotelList);
+        setFilteredHotels(hotelList); 
+      } catch (error) {
+        console.error("Lỗi tải danh sách:", error);
+        setToastError("Không thể tải danh sách khách sạn.");
+      } finally {
+        setIsLoading(false);
+      }
     };
+    fetchHotels();
+  }, []);
 
-    const handleCloseModal = () => {
-        setIsModalOpen(false);
-        setSelectedHotel(null);
-    };
+  // --- HANDLERS ---
+  const handleSearch = () => {
+    if (selectedLocation === "Tất cả") {
+        setFilteredHotels(hotels);
+    } else {
+        const filtered = hotels.filter(h => h.address.includes(selectedLocation));
+        setFilteredHotels(filtered);
+    }
+    resultsRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
-    // Step 1: Create Pending Booking and Show QR
-    const handleConfirmBooking = () => {
-        if (!selectedHotel) return;
+  const handleViewDetail = (hotelId: string) => {
+    navigate(`/hotel/${hotelId}`);
+  };
 
-        setIsBooking(true);
+  const calculateTotalRooms = (roomTypes: any[]) => {
+    return roomTypes?.reduce((sum, type) => sum + (type.totalRooms || 0), 0) || 0;
+  };
+
+  return (
+    <div className="bg-gray-50 min-h-screen relative">
+      <Header />
+      <Navbar />
+      <ErrorToast message={toastError} isVisible={!!toastError} />
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        // Calculate details immediately
-        const nights = Math.max(1, Math.round((new Date(checkOutDate).getTime() - new Date(checkInDate).getTime()) / (1000 * 60 * 60 * 24)));
-        const totalPrice = nights * selectedHotel.pricePerNight;
-        const bookingId = `TG-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-
-        const details: BookingDetails = {
-            bookingId,
-            hotel: selectedHotel,
-            checkInDate,
-            checkOutDate,
-            guests,
-            nights,
-            totalPrice,
-        };
-
-        // Simulate short processing then open QR modal
-        setTimeout(() => {
-            setPendingBooking(details); // Store data temporarily
-            setIsBooking(false);
-            handleCloseModal(); // Close booking form
-            setShowQrModal(true); // Open QR Payment
-        }, 1000);
-    };
-
-    // Step 2: Finalize Booking after QR Scan
-    const handleFinalizeBooking = () => {
-        if (!pendingBooking) return;
-
-        setIsConfirmingQr(true);
-        setTimeout(() => {
-            // 1. Save Booking History
-            try {
-                const existingBookings = JSON.parse(localStorage.getItem('myHotelBookings') || '[]') as BookingDetails[];
-                const newBookings = [...existingBookings, pendingBooking];
-                localStorage.setItem('myHotelBookings', JSON.stringify(newBookings));
-            } catch (error) {
-                console.error("Failed to save hotel booking to local storage", error);
-            }
+        {/* THANH TÌM KIẾM */}
+        <div className="bg-white p-6 rounded-lg shadow-lg mb-8 border border-gray-100">
+          <h1 className="text-3xl font-bold text-gray-800 mb-4 flex items-center">
+            <FaBuilding className="text-orange-500 mr-3" /> Tìm Khách Sạn
+          </h1>
+          <div className="flex gap-4 items-end">
+            <div className="flex-grow">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <FaMapMarkerAlt className="inline mr-2 text-gray-400" /> Chọn địa điểm
+              </label>
+              <select 
+                className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-orange-500 outline-none"
+                value={selectedLocation}
+                onChange={(e) => setSelectedLocation(e.target.value)}
+              >
+                {locations.map((loc) => (
+                  <option key={loc} value={loc}>{loc}</option>
+                ))}
+              </select>
+            </div>
             
-            // 2. Decrement Inventory
-            try {
-                const currentInventory = JSON.parse(localStorage.getItem('hotel_inventory') || '{}');
-                const hotelId = pendingBooking.hotel.id;
-                // Default to 10 if not in storage yet, then subtract 1
-                const currentCount = currentInventory[hotelId] !== undefined ? currentInventory[hotelId] : 10;
-                const newCount = Math.max(0, currentCount - 1);
-                
-                currentInventory[hotelId] = newCount;
-                localStorage.setItem('hotel_inventory', JSON.stringify(currentInventory));
-
-                // Update local state to reflect change immediately
-                setHotels(prevHotels => prevHotels.map(h => 
-                    h.id === hotelId ? { ...h, availableRooms: newCount } : h
-                ));
-            } catch (error) {
-                console.error("Failed to update inventory", error);
-            }
-
-            setBookingDetails(pendingBooking);
-            setIsConfirmingQr(false);
-            setShowQrModal(false);
-            setPendingBooking(null);
-            setShowReceipt(true);
-        }, 1500);
-    };
-
-    const handleCloseReceipt = () => {
-        setShowReceipt(false);
-        setBookingDetails(null);
-    };
-    
-    const handleScrollToResults = () => {
-        resultsRef.current?.scrollIntoView({ behavior: 'smooth' });
-    };
-
-    // Generate QR Data string
-    const qrData = pendingBooking 
-        ? `PAYMENT|${pendingBooking.hotel.name}|${pendingBooking.totalPrice}|${pendingBooking.bookingId}`
-        : '';
-
-    return (
-        <div className="bg-gray-50 min-h-screen">
-            <Header />
-            <Navbar />
-            <ErrorToast message={toastError} isVisible={!!toastError} />
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="bg-white p-6 rounded-lg shadow-lg mb-8">
-                    <h1 className="text-3xl font-bold text-gray-800 mb-4">Tìm & đặt phòng khách sạn</h1>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
-                        
-                        <div className="lg:col-span-1">
-                            <label htmlFor="destination" className="block text-sm font-medium text-gray-700 mb-1">
-                                <FaMapMarkerAlt className="inline mr-2 text-gray-400" />
-                                Chọn địa điểm
-                            </label>
-                            <select 
-                                id="destination" 
-                                value={destination} 
-                                onChange={e => setDestination(e.target.value)} 
-                                className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-                            >
-                                {locations.map(loc => (
-                                    <option key={loc} value={loc}>{loc}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label htmlFor="checkin" className="block text-sm font-medium text-gray-700 mb-1">
-                                <FaCalendarAlt className="inline mr-2 text-gray-400" />
-                                Nhận phòng
-                            </label>
-                            <input type="date" id="checkin" value={checkInDate} onChange={e => { setCheckInDate(e.target.value); setToastError(''); }} className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                        </div>
-
-                        <div>
-                            <label htmlFor="checkout" className="block text-sm font-medium text-gray-700 mb-1">
-                                <FaCalendarAlt className="inline mr-2 text-gray-400" />
-                                Trả phòng
-                            </label>
-                            <input type="date" id="checkout" value={checkOutDate} onChange={e => { setCheckOutDate(e.target.value); setToastError(''); }} className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                        </div>
-
-                        <div>
-                            <label htmlFor="guests" className="block text-sm font-medium text-gray-700 mb-1">
-                                <FaUsers className ="inline mr-2 text-gray-400" />
-                                Số khách
-                            </label>
-                            <input type="number" id="guests" value={guests} onChange={e => setGuests(parseInt(e.target.value, 10) || 1)} min="1" className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                        </div>
-                       
-                        <button onClick={handleScrollToResults} className="w-full bg-orange-500 text-white font-bold py-2 px-4 rounded-md hover:bg-orange-600 transition-colors flex items-center justify-center text-lg">
-                            <FaSearch className="mr-2"/>
-                            Tìm
-                        </button>
-                    </div>
-                </div>
-
-                <div ref={resultsRef}>
-                    <h2 className="text-2xl font-bold text-gray-800 mb-6">Kết quả tìm kiếm</h2>
-                    {filteredHotels.length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                            {filteredHotels.map(hotel => (
-                                <HotelCard key={hotel.id} hotel={hotel} onBookNow={handleBookNow} />
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="text-center py-10 bg-white rounded-lg shadow">
-                            <p className="text-gray-500">Không tìm thấy khách sạn phù hợp. Vui lòng thử lại.</p>
-                        </div>
-                    )}
-                </div>
-            </main>
-
-            <Footer />
-            
-            {/* Initial Booking Form Modal */}
-            <BookingModal 
-                isOpen={isModalOpen}
-                onClose={handleCloseModal}
-                onConfirm={handleConfirmBooking}
-                hotel={selectedHotel}
-                checkInDate={checkInDate}
-                checkOutDate={checkOutDate}
-                guests={guests}
-                isBooking={isBooking}
-            />
-
-            {/* Payment QR Code Modal */}
-            <QrVerificationModal
-                isOpen={showQrModal}
-                onClose={() => setShowQrModal(false)}
-                onConfirm={handleFinalizeBooking}
-                isConfirming={isConfirmingQr}
-                qrCodeData={qrData}
-            />
-
-            {/* Final Receipt Modal */}
-            <BookingReceiptModal
-                isOpen={showReceipt}
-                onClose={handleCloseReceipt}
-                details={bookingDetails}
-            />
+            <button
+              onClick={handleSearch}
+              className="bg-orange-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-orange-600 shadow-md transition-all flex items-center gap-2"
+            >
+              <FaSearch /> Tìm Kiếm
+            </button>
+          </div>
         </div>
-    );
+
+        {/* KẾT QUẢ TÌM KIẾM */}
+        <div ref={resultsRef}>
+          <div className="flex justify-between items-center mb-6">
+             <h2 className="text-2xl font-bold text-gray-800">
+                Khách sạn tại {selectedLocation} ({filteredHotels.length})
+             </h2>
+          </div>
+
+          {isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              {[1, 2, 3].map((n) => (
+                <div key={n} className="bg-white h-80 rounded-lg shadow animate-pulse"></div>
+              ))}
+            </div>
+          ) : filteredHotels.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              {filteredHotels.map((hotel) => {
+                const totalRooms = calculateTotalRooms(hotel.roomTypes || []);
+                const startPrice = hotel.minPrice || hotel.roomTypes?.[0]?.priceWeekday || 0;
+
+                return (
+                  <div
+                    key={hotel.id}
+                    className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-2xl transition-all duration-300 border border-gray-100 group flex flex-col cursor-pointer"
+                    onClick={() => handleViewDetail(hotel.id)}
+                  >
+                    {/* Ảnh bìa */}
+                    <div className="h-56 bg-gray-200 relative overflow-hidden">
+                      <img
+                        src={hotel.galleryImageIds?.length > 0 ? getImageUrl(hotel.galleryImageIds[0]) : "https://placehold.co/600x400"}
+                        alt={hotel.name}
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                      />
+                      <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center">
+                        <FaBed className="mr-1.5 text-orange-400" /> {totalRooms} phòng
+                      </div>
+                    </div>
+
+                    <div className="p-5 flex-1 flex flex-col">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="text-xl font-bold text-gray-800 line-clamp-1 group-hover:text-orange-600 transition-colors">
+                          {hotel.name}
+                        </h3>
+                      </div>
+
+                      <div className="flex items-center text-gray-500 text-sm mb-3">
+                        <FaMapMarkerAlt className="mr-1.5 text-orange-500 flex-shrink-0" />
+                        <span className="line-clamp-1">{hotel.address}</span>
+                      </div>
+
+                      <p className="text-gray-500 text-sm line-clamp-2 mb-4 flex-1">
+                        {hotel.description || "Khách sạn tiện nghi..."}
+                      </p>
+
+                      <div className="border-t border-gray-100 pt-4 flex items-end justify-between mt-auto">
+                        <div>
+                          <p className="text-xs text-gray-400 mb-0.5">Giá chỉ từ</p>
+                          <p className="text-xl font-bold text-orange-600">
+                            {new Intl.NumberFormat("vi-VN").format(startPrice)}
+                            <span className="text-sm text-gray-500 font-normal ml-1">₫</span>
+                          </p>
+                        </div>
+                        <button className="bg-indigo-50 text-indigo-600 px-4 py-2 rounded-lg font-medium hover:bg-indigo-100 transition-colors text-sm">
+                          Xem ngay
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-20 bg-white rounded-lg shadow">
+              <h3 className="text-xl font-bold text-gray-400">Không tìm thấy khách sạn nào</h3>
+              <p className="text-gray-500 mt-2">Vui lòng thử địa điểm khác.</p>
+            </div>
+          )}
+        </div>
+      </main>
+
+      <Footer />
+
+      {/* 👇 FLOAT BUTTON ZALO (Giống trang chủ) 👇 */}
+      <a
+        href="https://zalo.me/0963310889" // ⚠️ Thay số Zalo của bạn
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-8 right-8 z-50 group"
+        title="Chat Zalo ngay"
+      >
+        <div className="relative flex items-center justify-center w-14 h-14 bg-blue-600 rounded-full shadow-2xl hover:scale-110 transition-transform duration-300 ring-4 ring-white">
+            <span className="absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75 animate-ping"></span>
+            <img 
+                src="/zalo.webp" 
+                alt="Zalo" 
+                className="w-8 h-8 object-contain relative z-10" 
+            />
+            <span className="absolute right-full mr-3 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+                Tư vấn đặt phòng
+            </span>
+        </div>
+      </a>
+    </div>
+  );
 };
 
 export default BookingPage;

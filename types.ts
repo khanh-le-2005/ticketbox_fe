@@ -1,13 +1,12 @@
 
 import React from 'react';
 
+// --- AUTHENTICATION ---
 export interface User {
   email: string;
   lastLogin: number;
   role: "ADMIN" | "VANHANH";
 }
-
-
 export interface AuthContextType {
   user: User | null;
   login: (email: string, pass: string) => Promise<void>;
@@ -16,35 +15,82 @@ export interface AuthContextType {
   loading: boolean;
 }
 
-export interface TicketTier {
-    name: string;
-    price: string;
-    type: string;
-    description?: string;
+// --- EVENT & SHOW (Đã gộp và chuẩn hóa) ---
+export interface TicketType {
+  name: string;
+  price: number;
+  totalQuantity: number;
+  soldQuantity?: number;
+  description?: string; // Thêm description nếu cần
+}
+
+export interface EventAddress {
+  specificAddress: string;
+  ward: string;
+  district: string;
+  province: string;
+  fullAddress?: string;
 }
 
 export interface Event {
-  id: number;
-  title: string;
-  imageUrl: string;
+  id: string; // Dùng string cho đồng bộ với showId trong bookingApi
+  name: string;
   description: string;
-  date?: {
-    month: string;
-    day: number;
-    year: number;
-  };
-  views?: number;
-  location?: string;
-  price?: string;
-  time?: string;
-  fullLocation?: string;
-  lineup?: string[];
-  ticketTiers?: TicketTier[];
-  seatingChartUrl?: string;
+  startTime: string; 
+  address: EventAddress | string;
+  images: any[];
+  ticketTypes: TicketType[];
+  active: boolean;
+  image?: string;    // Dùng cho hiển thị Thumbnail
+  location?: string; // Dùng cho hiển thị rút gọn
+  price?: number;    // Giá thấp nhất để hiển thị
 }
 
+// --- BOOKING LOGIC ---
+// export interface TicketSelection {
+//   [tierName: string]: number; // Ví dụ: { "VIP": 2, "Standard": 1 }
+// }
+
+export interface ContactInfo {
+  phone: string;
+  email: string;
+}
+
+export interface TicketItem {
+  code: string;
+  tierName: string;
+}
+
+export interface EventBookingDetails {
+  bookingId: string;
+  event: Event;
+  ticketSelection: TicketSelection;
+  tickets: TicketItem[];
+  totalPrice: number;
+  contactInfo: ContactInfo;
+  timestamp?: string;
+}
+
+// --- COMPONENT PROPS (Giữ nguyên các UI props bạn đã viết) ---
+export interface OtpVerificationModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  contactInfo: ContactInfo | null;
+}
+
+export interface QrVerificationModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  isConfirming: boolean;
+  qrCodeData: string; // Chứa thông tin chuyển khoản MB Bank
+}
+
+// ... Các interface Hotel và Receipt khác bạn giữ nguyên bên dưới ...
+
 export interface Hotel {
-    id: number;
+    id: string;
     name: string;
     location: string;
     rating: number;
@@ -54,6 +100,7 @@ export interface Hotel {
     amenities?: string[];
     images?: string[];
     availableRooms: number;
+    address: string;
 }
 
 export interface EventSectionProps {
@@ -110,11 +157,12 @@ export interface TicketSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: (selection: TicketSelection, totalPrice: number) => void;
-  ticketTiers: TicketTier[];
+//   ticketTiers: TicketTier[];
   eventName: string;
 }
 
 export interface ContactInfo {
+    name?: string;
     phone: string;
     email: string;
 }
@@ -152,6 +200,8 @@ export interface EventBookingDetails {
     tickets: TicketItem[]; // Array of individual tickets with unique codes
     totalPrice: number;
     contactInfo: ContactInfo;
+    // Thời điểm đặt (ISO string) — optional
+    timestamp?: string;
 }
 
 export interface EventReceiptModalProps {
@@ -193,4 +243,50 @@ export interface Event {
     location?: string;     // Địa chỉ hiển thị (Frontend dùng cái này)
     date?: string;         // Ngày hiển thị
     price?: number;        // Giá thấp nhất để hiển thị "Từ..."
+}
+
+
+
+// đặt phòng 
+
+// Enum trạng thái phòng như backend
+export enum RoomStatus {
+  AVAILABLE = 'AVAILABLE',
+  OCCUPIED = 'OCCUPIED',
+  DIRTY = 'DIRTY',
+  MAINTENANCE = 'MAINTENANCE',
+  RESERVED = 'RESERVED'
+}
+
+// Payload đặt phòng
+export interface BookingRequestPayload {
+  hotelId: string;
+  roomTypeCode: string;
+  checkInDate: string; // YYYY-MM-DD
+  checkOutDate: string; // YYYY-MM-DD
+  quantity: number;
+  numberOfGuests: number;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  otp: string;
+}
+
+// Thông tin Booking trả về (để Admin quản lý)
+export interface BookingResponse {
+  id: string;
+  customerName: string;
+  roomNumber?: string; // Có thể null nếu chưa gán phòng
+  status: 'PENDING' | 'CONFIRMED' | 'CHECKED_IN' | 'CHECKED_OUT' | 'CANCELLED';
+  checkInDate: string;
+  checkOutDate: string;
+}
+
+// Thông tin Phòng (cho Admin Grid view)
+export interface RoomData {
+  id: string;
+  roomNumber: string;
+  floor: number;
+  status: RoomStatus;
+  roomTypeCode: string;
 }

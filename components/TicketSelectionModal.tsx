@@ -1,8 +1,23 @@
 // src/components/TicketSelectionModal.tsx
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { TicketSelectionModalProps, TicketSelection } from '../types';
-import { FaTimes, FaPlus, FaMinus, FaTicketAlt } from 'react-icons/fa';
+import React, { useState, useEffect } from 'react';
+import { FaMinus, FaPlus, FaTimes } from 'react-icons/fa';
+import { TicketSelection } from '../types';
+
+interface TicketTier {
+    name: string;      // Mã vé (VIP, STD...)
+    displayName?: string; // Tên hiển thị (Vé VIP...) - Nếu bạn có thêm trường này
+    price: number;
+    available: number;
+}
+
+interface TicketSelectionModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: (selection: TicketSelection, total: number) => void;
+    ticketTiers: TicketTier[];
+    eventName: string;
+}
 
 const TicketSelectionModal: React.FC<TicketSelectionModalProps> = ({
     isOpen,
@@ -11,167 +26,154 @@ const TicketSelectionModal: React.FC<TicketSelectionModalProps> = ({
     ticketTiers,
     eventName
 }) => {
+    const [selection, setSelection] = useState<TicketSelection>({});
 
-    // Khởi tạo state
-    const initialSelection = useMemo(() => {
-        const selection: TicketSelection = {};
-        ticketTiers.forEach(tier => {
-            selection[tier.name] = 0;
-        });
-        return selection;
-    }, [ticketTiers]);
-
-    const [selection, setSelection] = useState<TicketSelection>(initialSelection);
-
-    // Reset khi mở lại
+    // Reset selection khi mở modal
     useEffect(() => {
         if (isOpen) {
+            const initialSelection: TicketSelection = {};
+            ticketTiers.forEach(tier => {
+                initialSelection[tier.name] = 0;
+            });
             setSelection(initialSelection);
         }
-    }, [isOpen, initialSelection]);
+    }, [isOpen, ticketTiers]);
 
-    // Tính tổng vé
-    const totalSelectedTickets = useMemo(() => {
-        return Object.values(selection).reduce((sum: number, count) => sum + (count as number), 0);
-    }, [selection]);
+    const handleQuantityChange = (tierName: string, change: number) => {
+        setSelection(prev => {
+            const currentQty = prev[tierName] || 0;
+            const tier = ticketTiers.find(t => t.name === tierName);
+            if (!tier) return prev;
 
-    // Tính tổng tiền (FIX LỖI: Xử lý cả trường hợp giá là string hoặc number)
-    const totalPrice = useMemo(() => {
-        return ticketTiers.reduce((total: number, tier) => {
-            const quantity = selection[tier.name] || 0;
-            
-            let priceVal = 0;
-            if (typeof tier.price === 'number') {
-                priceVal = tier.price;
-            } else if (typeof tier.price === 'string') {
-                // Xóa ký tự không phải số nếu là string (VD: "100.000 đ")
-                priceVal = Number(tier.price.replace(/[^0-9]/g, ''));
-            }
+            const newQty = Math.max(0, Math.min(tier.available, currentQty + change));
+            return { ...prev, [tierName]: newQty };
+        });
+    };
 
-            return total + (quantity as number) * priceVal;
+    const calculateTotal = () => {
+        return ticketTiers.reduce((total, tier) => {
+            return total + (selection[tier.name] || 0) * tier.price;
         }, 0);
-    }, [selection, ticketTiers]);
+    };
+
+    const totalTickets = Object.values(selection).reduce((a, b) => a + b, 0);
 
     if (!isOpen) return null;
 
-    const handleQuantityChange = (tierName: string, delta: number) => {
-        setSelection(prev => {
-            const currentQty = prev[tierName] || 0;
-            // Kiểm tra số lượng tồn kho (nếu có trường available)
-            const tier = ticketTiers.find(t => t.name === tierName);
-            const maxQty = tier && (tier as any).available !== undefined ? (tier as any).available : 99;
-
-            const newQuantity = Math.max(0, Math.min(currentQty + delta, maxQty));
-            return { ...prev, [tierName]: newQuantity };
-        });
-    };
-
-    const handleConfirm = () => {
-        if (totalSelectedTickets > 0) {
-            onConfirm(selection, totalPrice);
-        }
-    };
-
-    // Helper format tiền hiển thị
-    const formatPrice = (price: number | string) => {
-        const val = typeof price === 'string' ? Number(price.replace(/[^0-9]/g, '')) : price;
-        return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
-    };
-
     return (
-        <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-center p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl relative animate-fade-in-up overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+            {/* Backdrop mờ */}
+            <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={onClose}></div>
 
-                {/* Header */}
-                <div className="bg-indigo-600 p-6 text-center relative shrink-0">
-                    <button
-                        onClick={onClose}
-                        className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors"
-                    >
-                        <FaTimes size={24} />
-                    </button>
-                    <h2 className="text-2xl font-bold text-white mb-1">Chọn Vé</h2>
-                    <p className="text-indigo-100 text-sm truncate px-8">{eventName}</p>
-                </div>
+            <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+                <div className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+                    
+                    {/* Header: Màu tím xanh như trong ảnh */}
+                    <div className="bg-indigo-600 px-4 py-4 sm:px-6 relative">
+                        <button 
+                            onClick={onClose}
+                            className="absolute right-4 top-4 text-white hover:text-gray-200"
+                        >
+                            <FaTimes size={20} />
+                        </button>
+                        <h3 className="text-xl font-bold leading-6 text-white text-center">
+                            Chọn Vé
+                        </h3>
+                        <p className="mt-1 text-sm text-indigo-100 text-center">
+                            {eventName}
+                        </p>
+                    </div>
 
-                {/* Body - Scrollable */}
-                <div className="p-6 overflow-y-auto custom-scrollbar">
-                    <div className="space-y-4">
-                        {ticketTiers.map(tier => {
-                            // Xử lý hiển thị tồn kho (nếu có)
-                            // @ts-ignore
-                            const available = tier.available !== undefined ? tier.available : 999;
-                            const isSoldOut = available <= 0;
-
-                            return (
-                                <div
-                                    key={tier.name}
-                                    className={`p-4 rounded-xl border-2 transition-all flex flex-col sm:flex-row items-center justify-between ${
-                                        (selection[tier.name] || 0) > 0 
-                                        ? 'border-orange-500 bg-orange-50' 
-                                        : 'border-gray-100 hover:border-indigo-200'
-                                    } ${isSoldOut ? 'opacity-60 bg-gray-50' : ''}`}
-                                >
-                                    <div className="mb-4 sm:mb-0 text-center sm:text-left w-full sm:w-auto">
-                                        <h3 className="text-lg font-bold text-gray-800 flex items-center justify-center sm:justify-start">
-                                            <FaTicketAlt className={`mr-2 ${isSoldOut ? 'text-gray-400' : 'text-orange-500'}`} />
-                                            {tier.name}
-                                        </h3>
-                                        <p className="text-indigo-600 font-bold text-lg mt-1">
-                                            {formatPrice(tier.price)}
-                                        </p>
-                                        {isSoldOut ? (
-                                            <span className="text-xs font-bold text-red-500 bg-red-100 px-2 py-0.5 rounded">HẾT VÉ</span>
-                                        ) : (
-                                            <p className="text-xs text-gray-500 mt-1">
-                                                {tier.description || "Vé vào cổng trực tiếp"}
+                    {/* Body: Danh sách vé */}
+                    <div className="px-4 py-5 sm:p-6 bg-gray-50 max-h-[60vh] overflow-y-auto">
+                        <div className="space-y-4">
+                            {ticketTiers.map((tier) => {
+                                const qty = selection[tier.name] || 0;
+                                const isMax = qty >= tier.available;
+                                
+                                return (
+                                    <div key={tier.name} className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm flex items-center justify-between">
+                                        
+                                        {/* Thông tin vé (Bên trái) */}
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-orange-500 text-lg">🎫</span>
+                                                {/* Ưu tiên hiện DisplayName nếu có, ko thì hiện Name (VIP, STD) */}
+                                                <h4 className="font-bold text-gray-900 text-lg uppercase">
+                                                    {tier.displayName || tier.name}
+                                                </h4>
+                                            </div>
+                                            <p className="text-indigo-600 font-bold text-lg mt-1">
+                                                {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(tier.price)}
                                             </p>
-                                        )}
+                                            <p className="text-xs text-green-600 font-medium mt-1">
+                                                Còn lại: {tier.available} vé
+                                            </p>
+                                        </div>
+
+                                        {/* Nút tăng giảm (Bên phải) - ĐÃ SỬA CĂN CHỈNH */}
+                                        <div className="flex items-center gap-3">
+                                            {/* Nút TRỪ */}
+                                            <button
+                                                onClick={() => handleQuantityChange(tier.name, -1)}
+                                                disabled={qty === 0}
+                                                className={`
+                                                    w-8 h-8 rounded-full flex items-center justify-center transition-colors
+                                                    ${qty === 0 
+                                                        ? 'bg-gray-100 text-gray-300 cursor-not-allowed' 
+                                                        : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}
+                                                `}
+                                            >
+                                                <FaMinus size={12} />
+                                            </button>
+
+                                            {/* Số lượng */}
+                                            <span className="font-bold text-gray-900 w-8 text-center text-lg">
+                                                {qty}
+                                            </span>
+
+                                            {/* Nút CỘNG */}
+                                            <button
+                                                onClick={() => handleQuantityChange(tier.name, 1)}
+                                                disabled={isMax}
+                                                className={`
+                                                    w-8 h-8 rounded-full flex items-center justify-center transition-colors
+                                                    ${isMax
+                                                        ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                                                        : 'bg-indigo-100 text-indigo-600 hover:bg-indigo-200'}
+                                                `}
+                                            >
+                                                <FaPlus size={12} />
+                                            </button>
+                                        </div>
                                     </div>
-
-                                    <div className="flex items-center space-x-3 bg-white p-1 rounded-full shadow-sm border border-gray-200">
-                                        <button
-                                            onClick={() => handleQuantityChange(tier.name, -1)}
-                                            disabled={!selection[tier.name] || isSoldOut}
-                                            className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                                        >
-                                            <FaMinus size={12} />
-                                        </button>
-
-                                        <span className="text-lg font-bold w-8 text-center text-gray-800">
-                                            {selection[tier.name] || 0}
-                                        </span>
-
-                                        <button
-                                            onClick={() => handleQuantityChange(tier.name, 1)}
-                                            disabled={isSoldOut || (selection[tier.name] || 0) >= available}
-                                            className="w-8 h-8 rounded-full flex items-center justify-center bg-indigo-100 text-indigo-600 hover:bg-indigo-600 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                                        >
-                                            <FaPlus size={12} />
-                                        </button>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-
-                {/* Footer */}
-                <div className="bg-white border-t border-gray-100 p-6 shrink-0 flex flex-col sm:flex-row justify-between items-center gap-4">
-                    <div className="text-center sm:text-left">
-                        <span className="text-gray-500 text-sm block">Tổng thanh toán</span>
-                        <span className="text-2xl font-bold text-orange-600 block leading-none">
-                            {totalPrice.toLocaleString('vi-VN')} ₫
-                        </span>
+                                );
+                            })}
+                        </div>
                     </div>
 
-                    <button
-                        onClick={handleConfirm}
-                        disabled={totalSelectedTickets === 0}
-                        className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg transform transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
-                    >
-                        Tiếp tục ({totalSelectedTickets})
-                    </button>
+                    {/* Footer: Tổng tiền & Nút Tiếp tục */}
+                    <div className="bg-white px-4 py-4 sm:px-6 border-t border-gray-200 flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-gray-500">Tổng thanh toán</p>
+                            <p className="text-xl font-bold text-orange-600">
+                                {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(calculateTotal())}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => onConfirm(selection, calculateTotal())}
+                            disabled={totalTickets === 0}
+                            className={`
+                                rounded-lg px-6 py-3 text-base font-semibold shadow-sm transition-all
+                                ${totalTickets === 0
+                                    ? 'bg-orange-300 text-white cursor-not-allowed'
+                                    : 'bg-orange-500 text-white hover:bg-orange-600 hover:shadow-lg transform active:scale-95'}
+                            `}
+                        >
+                            Tiếp tục ({totalTickets})
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
