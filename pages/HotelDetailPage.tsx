@@ -17,6 +17,7 @@ import {
   FaFacebook,
   FaTwitter,
   FaShareAlt,
+  FaSpinner, // Thêm icon loading nhỏ cho giá
 } from "react-icons/fa";
 
 import Header from "../components/Header";
@@ -42,9 +43,16 @@ const HotelDetailPage: React.FC = () => {
   const [hotel, setHotel] = useState<HotelDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState<string>("");
+
+  // State loại phòng đang chọn
   const [selectedRoomType, setSelectedRoomType] = useState<RoomType | null>(
     null
   );
+
+  // State giá tiền thực tế (Cập nhật từ API price)
+  const [realtimePrice, setRealtimePrice] = useState<number>(0);
+  const [isPriceLoading, setIsPriceLoading] = useState(false);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // --- HÀM FETCH DATA ---
@@ -75,12 +83,8 @@ const HotelDetailPage: React.FC = () => {
 
           // Logic chọn phòng mặc định
           if (data.roomTypes && data.roomTypes.length > 0) {
-            if (selectedRoomType) {
-              const updatedRoom = data.roomTypes.find(
-                (r: RoomType) => r.code === selectedRoomType.code
-              );
-              if (updatedRoom) setSelectedRoomType(updatedRoom);
-            } else {
+            // Nếu chưa chọn phòng nào thì chọn phòng đầu tiên
+            if (!selectedRoomType) {
               setSelectedRoomType(data.roomTypes[0]);
             }
           }
@@ -99,6 +103,41 @@ const HotelDetailPage: React.FC = () => {
     window.scrollTo(0, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  // --- EFFECT: LẤY GIÁ THEO NGÀY (LOGIC MỚI) ---
+  useEffect(() => {
+    const fetchRoomPrice = async () => {
+      if (!id || !selectedRoomType) return;
+
+      // 1. Set giá mặc định trước (tránh hiện 0đ)
+      const defaultPrice =
+        selectedRoomType.priceWeekday || selectedRoomType.pricePerNight || 0;
+      setRealtimePrice(defaultPrice);
+
+      try {
+        setIsPriceLoading(true);
+        // 2. Gọi API lấy giá realtime
+        // URL: https://api.momangshow.vn/api/hotels/{id}/price?roomTypeCode={code}
+        const res: any = await hotelApi.getRoomPrice(
+          id,
+          selectedRoomType.code || ""
+        );
+
+        const priceData = res.data?.data || res.data;
+
+        // 3. Nếu có giá mới từ API thì cập nhật
+        if (priceData && priceData.price) {
+          setRealtimePrice(priceData.price);
+        }
+      } catch (error) {
+        console.warn("Không lấy được giá realtime, dùng giá mặc định");
+      } finally {
+        setIsPriceLoading(false);
+      }
+    };
+
+    fetchRoomPrice();
+  }, [id, selectedRoomType]); // Chạy lại khi đổi khách sạn hoặc đổi loại phòng
 
   const handleBookingSuccess = () => {
     fetchHotelDetail(false);
@@ -159,16 +198,13 @@ const HotelDetailPage: React.FC = () => {
 
         <div className="flex flex-col lg:flex-row gap-8">
           {/* === CỘT TRÁI === */}
-          {/* === CỘT TRÁI: ẢNH & THÔNG TIN === */}
           <div className="lg:w-2/3">
             {/* Gallery Ảnh */}
             <div className="bg-white p-2 rounded-xl shadow-sm mb-8">
-              {/* Ảnh chính (Main Image) */}
               <div className="h-[300px] md:h-[450px] w-full mb-2 overflow-hidden rounded-lg bg-gray-100 relative group">
                 <img
                   src={activeImage}
                   alt={hotel.name}
-                  // Thay đổi: object-contain nếu muốn nhìn trọn vẹn, object-cover nếu muốn full khung
                   className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
                   onError={(e) =>
                     ((e.target as HTMLImageElement).src =
@@ -176,39 +212,26 @@ const HotelDetailPage: React.FC = () => {
                   }
                 />
               </div>
-
-              {/* Thumbnails (Ảnh nhỏ bên dưới) */}
-              {hotel.imageUrls && hotel.imageUrls.length > 0 && (
-                <div className="grid grid-cols-5 gap-2">
-                  {hotel.imageUrls.slice(0, 5).map((img, idx) => (
-                    <div
-                      key={idx}
-                      onClick={() => setActiveImage(img)}
-                      className={`
-                                                cursor-pointer h-16 md:h-24 rounded-md overflow-hidden border-2 transition-all relative
-                                                ${
-                                                  activeImage === img
-                                                    ? "border-orange-500 ring-2 ring-orange-200"
-                                                    : "border-transparent opacity-70 hover:opacity-100"
-                                                }
-                                            `}
-                    >
-                      <img
-                        src={img}
-                        alt={`Gallery ${idx}`}
-                        className="w-full h-full object-cover"
-                      />
-                      {/* Overlay khi chưa chọn */}
-                      {activeImage !== img && (
-                        <div className="absolute inset-0 bg-black bg-opacity-10 hover:bg-opacity-0 transition-all"></div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+              <div className="grid grid-cols-5 gap-2">
+                {hotel.imageUrls?.slice(0, 5).map((img, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => setActiveImage(img)}
+                    className={`cursor-pointer h-16 md:h-20 rounded-md overflow-hidden border-2 transition-all ${
+                      activeImage === img
+                        ? "border-orange-500 opacity-100"
+                        : "border-transparent opacity-70 hover:opacity-100"
+                    }`}
+                  >
+                    <img
+                      src={img}
+                      alt={`Gallery ${idx}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
-
-            {/* ... (Các phần thông tin bên dưới giữ nguyên) ... */}
 
             {/* Thông tin chi tiết */}
             <div className="bg-white p-6 rounded-xl shadow-sm mb-8">
@@ -330,13 +353,16 @@ const HotelDetailPage: React.FC = () => {
 
               <div className="mb-6 flex justify-between items-end">
                 <span className="text-gray-500 text-sm">Giá mỗi đêm</span>
-                <span className="text-3xl font-bold text-orange-600">
-                  {selectedRoomType
-                    ? formatCurrency(
-                        selectedRoomType.priceWeekday ||
-                          selectedRoomType.pricePerNight
-                      )
-                    : "0 ₫"}
+                {/* HIỂN THỊ GIÁ REALTIME */}
+                <span className="text-3xl font-bold text-orange-600 flex items-center">
+                  {isPriceLoading ? (
+                    // Skeleton loading cho giá
+                    <div className="animate-pulse bg-gray-200 h-8 w-24 rounded"></div>
+                  ) : selectedRoomType ? (
+                    formatCurrency(realtimePrice)
+                  ) : (
+                    "0 ₫"
+                  )}
                 </span>
               </div>
 
@@ -360,16 +386,22 @@ const HotelDetailPage: React.FC = () => {
                   else alert("Vui lòng chọn loại phòng trước!");
                 }}
                 disabled={
-                  !selectedRoomType || selectedRoomType.totalRooms === 0
+                  !selectedRoomType ||
+                  selectedRoomType.totalRooms === 0 ||
+                  isPriceLoading
                 }
                 className={`w-full font-bold py-4 px-4 rounded-xl transition-all transform hover:-translate-y-1 shadow-lg shadow-orange-200
                 ${
-                  selectedRoomType && selectedRoomType.totalRooms > 0
+                  selectedRoomType &&
+                  selectedRoomType.totalRooms > 0 &&
+                  !isPriceLoading
                     ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700"
                     : "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
                 }`}
               >
-                {selectedRoomType && selectedRoomType.totalRooms === 0
+                {isPriceLoading
+                  ? "Đang cập nhật giá..."
+                  : selectedRoomType && selectedRoomType.totalRooms === 0
                   ? "Hết phòng"
                   : "ĐẶT PHÒNG NGAY"}
               </button>
@@ -378,14 +410,13 @@ const HotelDetailPage: React.FC = () => {
                 Bước tiếp theo: Nhập ngày & Thông tin khách hàng.
               </p>
 
-              {/* --- MỤC CHIA SẺ (ĐÃ SỬA ICON ZALO) --- */}
+              {/* --- MỤC CHIA SẺ --- */}
               <div className="mt-8 pt-6 border-t border-dashed border-gray-200">
                 <p className="text-xs font-bold text-gray-500 text-center mb-3 uppercase tracking-wide">
-                  Liên Hệ Ngay
+                  Chia sẻ khách sạn này
                 </p>
                 <div className="flex items-center justify-center gap-5">
-                  {/* Facebook */}
-                  {/* <a
+                  <a
                     href={`https://www.facebook.com/sharer/sharer.php?u=${window.location.href}`}
                     target="_blank"
                     rel="noreferrer"
@@ -393,10 +424,9 @@ const HotelDetailPage: React.FC = () => {
                     title="Chia sẻ lên Facebook"
                   >
                     <FaFacebook size={24} />
-                  </a> */}
+                  </a>
 
-                  {/* Twitter */}
-                  {/* <a
+                  <a
                     href={`https://twitter.com/intent/tweet?url=${window.location.href}`}
                     target="_blank"
                     rel="noreferrer"
@@ -404,9 +434,8 @@ const HotelDetailPage: React.FC = () => {
                     title="Chia sẻ lên Twitter"
                   >
                     <FaTwitter size={24} />
-                  </a> */}
+                  </a>
 
-                  {/* Zalo (Sử dụng SVG để đảm bảo hiển thị đẹp) */}
                   <a
                     href="https://zalo.me/0963310889"
                     target="_blank"
@@ -422,7 +451,7 @@ const HotelDetailPage: React.FC = () => {
                   </a>
 
                   {/* Copy Link */}
-                  {/* <button
+                  <button
                     onClick={() => {
                       navigator.clipboard.writeText(window.location.href);
                       alert("Đã sao chép liên kết!");
@@ -431,7 +460,7 @@ const HotelDetailPage: React.FC = () => {
                     title="Sao chép liên kết"
                   >
                     <FaShareAlt size={22} />
-                  </button> */}
+                  </button>
                 </div>
               </div>
             </div>
@@ -448,14 +477,17 @@ const HotelDetailPage: React.FC = () => {
           onClose={() => setIsModalOpen(false)}
           hotelId={hotel.id}
           roomTypeCode={selectedRoomType.code || ""}
+          // 👇 QUAN TRỌNG: Truyền giá realtime vào modal để tính tiền
           pricePerNight={
-            selectedRoomType.priceWeekday || selectedRoomType.pricePerNight
+            realtimePrice ||
+            selectedRoomType.priceWeekday ||
+            selectedRoomType.pricePerNight
           }
-          // Truyền callback để refresh dữ liệu khi đặt thành công
           onSuccess={handleBookingSuccess}
         />
       )}
 
+      {/* Nút Zalo Float */}
       <a
         href="https://zalo.me/0963310889" // ⚠️ Thay số Zalo của bạn vào đây
         target="_blank"
@@ -477,6 +509,37 @@ const HotelDetailPage: React.FC = () => {
           {/* Tooltip nhỏ hiện khi hover */}
           <span className="absolute right-full mr-3 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
             Tư vấn ngay
+          </span>
+        </div>
+      </a>
+      <a
+        href="tel:0929009999" // ⚠️ Thay số ĐIỆN THOẠI nghe gọi vào đây
+        className="fixed bottom-28 right-8 z-50 group"
+        title="Gọi ngay"
+      >
+        <div className="relative flex items-center justify-center w-14 h-14 bg-green-500 rounded-full shadow-2xl hover:scale-110 transition-transform duration-300 ring-4 ring-white">
+          {/* Hiệu ứng sóng (Ping) */}
+          <span className="absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 animate-ping"></span>
+
+          {/* Icon Phone SVG */}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+            stroke="currentColor"
+            className="w-7 h-7 text-white relative z-10 animate-bounce-slow"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"
+            />
+          </svg>
+
+          {/* Tooltip */}
+          <span className="absolute right-full mr-3 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+            Gọi ngay
           </span>
         </div>
       </a>

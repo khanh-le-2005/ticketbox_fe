@@ -32,9 +32,9 @@ const Footer: React.FC = () => {
                     <div>
                         <h4 className="font-semibold text-lg mb-4">Kết nối với chúng tôi</h4>
                         <div className="flex space-x-4">
-                            <a href="#" className="text-gray-400 hover:text-white"><FaFacebook size={24} /></a>
-                            <a href="#" className="text-gray-400 hover:text-white"><FaInstagram size={24} /></a>
-                            <a href="#" className="text-gray-400 hover:text-white"><FaYoutube size={24} /></a>
+                            <a href="https://www.facebook.com/momangshowtamdao" className="text-gray-400 hover:text-white"><FaFacebook size={24} /></a>
+                            <a href="https://www.instagram.com/momangtamdao/" className="text-gray-400 hover:text-white"><FaInstagram size={24} /></a>
+                            <a href=" https://www.youtube.com/@momangshow " className="text-gray-400 hover:text-white"><FaYoutube size={24} /></a>
                         </div>
                     </div>
                 </div>

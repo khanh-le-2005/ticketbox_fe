@@ -31,24 +31,26 @@
 //     axiosClient.get<ApiResponse<Hotel[]>>("/hotels", { params: { keyword } }),
 // };
 
-
-
 // export default hotelApi;
 
-
 import axiosClient from "./axiosClient"; // Đảm bảo đường dẫn đúng file axiosClient của bạn
-import { 
-  ApiResponse, 
-  Hotel, 
-  CreateHotelRequest, 
-  UpdateHotelRequest, 
+import {
+  ApiResponse,
+  Hotel,
+  CreateHotelRequest,
+  UpdateHotelRequest,
   AvailabilityResponse,
-  CalendarDayItem
+  CalendarDayItem,
 } from "@/type"; // Đảm bảo đã export đủ các type này trong file type chung
 
 // Cấu hình URL gốc để ghép link ảnh
 export const BASE_API_URL = "https://api.momangshow.vn/api";
 export const IMAGE_BASE_URL = `${BASE_API_URL}/images`;
+export interface RoomPriceResponse {
+  roomTypeCode: string;
+  price: number; // Giá hiện tại (theo ngày hiện tại hoặc logic backend)
+  currency: string;
+}
 
 const hotelApi = {
   // =================================================================
@@ -129,10 +131,10 @@ const hotelApi = {
 
       // Kiểm tra logic thành công của Backend
       if (res.success === 200 || res.success === true) {
-        const imageId = res.data; 
+        const imageId = res.data;
         return {
           id: imageId,
-          url: `${IMAGE_BASE_URL}/${imageId}`
+          url: `${IMAGE_BASE_URL}/${imageId}`,
         };
       } else {
         throw new Error(res.message || "Upload thất bại");
@@ -148,10 +150,10 @@ const hotelApi = {
    */
   getImageUrl: (idOrIds: string | number | number[] | undefined) => {
     if (!idOrIds) return "https://placehold.co/600x400?text=No+Image";
-    
+
     // Nếu là mảng, lấy phần tử đầu tiên
     const id = Array.isArray(idOrIds) ? idOrIds[0] : idOrIds;
-    
+
     const strId = String(id);
     if (strId.startsWith("http")) return strId; // Nếu đã là link full
     return `${IMAGE_BASE_URL}/${id}`;
@@ -165,21 +167,46 @@ const hotelApi = {
    * Kiểm tra phòng trống theo thời gian thực (Realtime Check)
    * GET /api/hotels/{hotelId}/availability
    */
-  checkAvailability: (hotelId: string, roomTypeCode: string, checkIn: string, checkOut: string) => {
-    return axiosClient.get<ApiResponse<AvailabilityResponse>>(`/hotels/${hotelId}/availability`, {
-        params: { roomTypeCode, checkIn, checkOut }
-    });
+  checkAvailability: (
+    hotelId: string,
+    roomTypeCode: string,
+    checkIn: string,
+    checkOut: string
+  ) => {
+    return axiosClient.get<ApiResponse<AvailabilityResponse>>(
+      `/hotels/${hotelId}/availability`,
+      {
+        params: { roomTypeCode, checkIn, checkOut },
+      }
+    );
   },
 
   /**
    * Lấy dữ liệu lịch và giá cho cả tháng (Calendar View)
    * GET /api/hotels/{hotelId}/calendar
    */
-  getCalendar: (hotelId: string, roomTypeCode: string, month: number, year: number) => {
-    return axiosClient.get<ApiResponse<CalendarDayItem[]>>(`/hotels/${hotelId}/calendar`, {
-        params: { roomTypeCode, month, year }
-    });
-  }
+  getCalendar: (
+    hotelId: string,
+    roomTypeCode: string,
+    month: number,
+    year: number
+  ) => {
+    return axiosClient.get<ApiResponse<CalendarDayItem[]>>(
+      `/hotels/${hotelId}/calendar`,
+      {
+        params: { roomTypeCode, month, year },
+      }
+    );
+  },
+
+  getRoomPrice: (hotelId: string, roomTypeCode: string) => {
+    return axiosClient.get<ApiResponse<RoomPriceResponse>>(
+      `/hotels/${hotelId}/price`,
+      {
+        params: { roomTypeCode },
+      }
+    );
+  },
 };
 
 export default hotelApi;
