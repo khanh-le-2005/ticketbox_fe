@@ -1,29 +1,9 @@
 import axiosClient from "./axiosClient";
 import { ApiResponse, RoomTypePayload, RoomTypeResponse } from "@/type";
+import { CreateHotelBookingRequest, HotelPaymentResponse } from "@/type/room.types";
 
-// Interface request tạo booking
-export interface CreateHotelBookingRequest {
-  hotelId: string;
-  roomTypeCode: string;
-  checkInDate: string;
-  checkOutDate: string;
-  quantity: number;
-  numberOfGuests: number;
-  customerName: string;
-  customerEmail: string;
-  customerPhone: string;
-  otp: string;
-}
-
-export interface HotelPaymentResponse {
-  user_id: string; 
-  payment_content: string;
-  amount: number;
-  qr_base64: string;
-}
 
 const roomApi = {
-  // --- QUẢN LÝ PHÒNG (ADMIN) ---
   getRoomTypesByHotel: (hotelId: string) => {
     return axiosClient.get<ApiResponse<RoomTypeResponse[]>>(`/hotels/${hotelId}/room-types`);
   },
@@ -46,8 +26,12 @@ const roomApi = {
   },
 
   // --- BOOKING FLOW ---
-  requestOtp: (email: string) => {
-    return axiosClient.post(`/verification/request-otp`, null, { params: { email } });
+  requestOtp: (target: string, channel: 'EMAIL' | 'ZALO' = 'EMAIL', type: string = 'SHOW') => {
+    return axiosClient.post(`/verification/request-otp`, null, { params: { target, channel, type } });
+  },
+
+  requestOtpZalo: (phone: string, type: string = 'SHOW') => {
+    return axiosClient.post(`/verification/request-otp`, null, { params: { target: phone, channel: 'ZALO', type } });
   },
 
   createBooking: (data: CreateHotelBookingRequest) => {

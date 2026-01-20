@@ -11,6 +11,7 @@ import Footer from "../components/Footer";
 // Import API
 import showApi from "../api/showApi";
 import { getImageUrl } from "../api/api_image";
+import FloatButton from "@/components/FloatButton";
 
 const HomePage: React.FC = () => {
   const [highlightedEvents, setHighlightedEvents] = useState<any[]>([]);
@@ -88,14 +89,32 @@ const HomePage: React.FC = () => {
             formattedPrice:
               minPrice === 0 ? "Miễn phí" : formatCurrency(minPrice),
             description: show.description,
+            // 👇 THÊM DÒNG NÀY: Lấy trạng thái nổi bật từ API (cần backend trả về field này)
+            isHighlighted: show.isHighlighted === true || show.highlighted === true,
           };
         });
 
-        const sorted = mappedEvents.sort(
-          (a: any, b: any) =>
-            new Date(b.date).getTime() - new Date(a.date).getTime()
-        );
+        // 👇 SỬA LOGIC SẮP XẾP TẠI ĐÂY
+        const sorted = mappedEvents.sort((a: any, b: any) => {
+          // 1. Ưu tiên Checkbox "Nổi bật" trước
+          if (a.isHighlighted && !b.isHighlighted) return -1; // a lên trước
+          if (!a.isHighlighted && b.isHighlighted) return 1;  // b lên trước
 
+          // 2. Nếu cùng trạng thái nổi bật (cùng true hoặc cùng false), thì xét logic cũ (Thứ 7 & Ngày tháng)
+          const dateA = new Date(a.date);
+          const dateB = new Date(b.date);
+
+          const isSatA = dateA.getDay() === 6;
+          const isSatB = dateB.getDay() === 6;
+
+          if (isSatA && !isSatB) return -1;
+          if (!isSatA && isSatB) return 1;
+
+          // Nếu cùng là thứ 7 hoặc cùng không phải, sắp xếp theo thời gian mới nhất giảm dần
+          return dateB.getTime() - dateA.getTime();
+        });
+
+        // Cắt mảng như cũ: 4 cái đầu tiên (sau khi sort) sẽ vào mục Nổi bật
         setHighlightedEvents(sorted.slice(0, 4));
         setMusicEvents(sorted.slice(4, 8));
         setEdmEvents(sorted.slice(8, 12));
@@ -111,10 +130,21 @@ const HomePage: React.FC = () => {
     fetchData();
   }, []);
 
+  // return (
+  //   <div className="bg-gray-50 min-h-screen relative">
+  //     <Header />
+  //     <Navbar />
+  //     <main>
+  //       <Hero />
   return (
     <div className="bg-gray-50 min-h-screen relative">
       <Header />
-      <Navbar />
+
+      {/* 👇 SỬA ĐOẠN NÀY: Ẩn Navbar trên mobile để không bị trùng 2 menu */}
+      <div className="hidden lg:block">
+        <Navbar />
+      </div>
+
       <main>
         <Hero />
 
@@ -134,7 +164,10 @@ const HomePage: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {highlightedEvents.map((event) => (
                 <div key={event.id} className="h-full">
-                  <EventCard event={event} imageClassName="h-48 sm:h-52" />
+                  <EventCard
+                    event={event}
+                    imageClassName="h-56 sm:h-64 md:h-52 w-full object-cover object-center"
+                  />
                 </div>
               ))}
             </div>
@@ -175,62 +208,7 @@ const HomePage: React.FC = () => {
       </main>
       <Footer />
 
-      {/* 👇 FLOAT BUTTON ZALO (Nút Zalo nổi) 👇 */}
-      <a
-        href="https://zalo.me/0963310889" // ⚠️ Thay số điện thoại Zalo của bạn vào đây
-        target="_blank"
-        rel="noopener noreferrer"
-        className="fixed bottom-8 right-8 z-50 group"
-        title="Chat Zalo ngay"
-      >
-        <div className="relative flex items-center justify-center w-14 h-14 bg-blue-600 rounded-full shadow-2xl hover:scale-110 transition-transform duration-300 ring-4 ring-white">
-          {/* Hiệu ứng sóng (Ping) */}
-          <span className="absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75 animate-ping"></span>
-
-          {/* Icon Zalo */}
-          <img
-            src="/zalo.webp"
-            alt="Zalo"
-            className="w-8 h-8 object-contain relative z-10"
-          />
-
-          {/* Tooltip nhỏ */}
-          <span className="absolute right-full mr-3 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-            Tư vấn ngay
-          </span>
-        </div>
-      </a>
-      <a
-        href="tel:0929009999" // ⚠️ Thay số ĐIỆN THOẠI nghe gọi vào đây
-        className="fixed bottom-28 right-8 z-50 group"
-        title="Gọi ngay"
-      >
-        <div className="relative flex items-center justify-center w-14 h-14 bg-green-500 rounded-full shadow-2xl hover:scale-110 transition-transform duration-300 ring-4 ring-white">
-          {/* Hiệu ứng sóng (Ping) */}
-          <span className="absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 animate-ping"></span>
-
-          {/* Icon Phone SVG */}
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={2}
-            stroke="currentColor"
-            className="w-7 h-7 text-white relative z-10 animate-bounce-slow"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"
-            />
-          </svg>
-
-          {/* Tooltip */}
-          <span className="absolute right-full mr-3 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-            Gọi ngay
-          </span>
-        </div>
-      </a>
+      <FloatButton />
     </div>
   );
 };

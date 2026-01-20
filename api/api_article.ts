@@ -1,51 +1,10 @@
+import axiosClient from './axiosClient';
+import { Article } from '@/type/indext';
 
-import axios, { AxiosResponse } from 'axios';
-import { BASE_API_URL } from './api_base';
-
-// =================================================================
-// 1. INTERFACE/TYPES (BỔ SUNG TRƯỜNG MENU)
-// =================================================================
-
-export type ArticleStatus = 'DRAFT' | 'PUBLISHED' | 'PENDING';
-
-export interface Article {
-  id?: string;
-  title: string;
-  shortDescription: string;
-  content: string; 
-  tags: string;
-  thumbUrl: string;
-  menu?: string; // BỔ SUNG TRƯỜNG MENU
-  seoTitle: string;
-  seoDescription: string;
-  status: ArticleStatus;
-  createdDate?: string;
-  publishedDate?: string;
-}
-
+const ENDPOINT = '/admin/news';
 
 // =================================================================
-// 2. CẤU HÌNH API
-// =================================================================
-
-const API_ADMIN_BASE_URL = `${BASE_API_URL}/admin/news`; 
-
-// Axios instance cho Admin
-const adminApi = axios.create({
-  baseURL: API_ADMIN_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Axios instance cho Public (không cần Auth)
-const publicApi = axios.create({
-    baseURL: API_ADMIN_BASE_URL,
-});
-
-
-// =================================================================
-// 3. CÁC HÀM GỌI API (ADMIN) - Giữ nguyên
+// 1. CÁC HÀM GỌI API (ADMIN)
 // =================================================================
 
 /**
@@ -54,51 +13,61 @@ const publicApi = axios.create({
  */
 export const getAllArticles = async (): Promise<Article[]> => {
   try {
-    const response: AxiosResponse<Article[]> = await adminApi.get('');
-    return response.data;
+    return await axiosClient.get(ENDPOINT);
   } catch (error) {
     console.error('Error fetching all articles:', error);
     throw error;
   }
 };
 
-// ... (getArticleById, createArticle, updateArticle, deleteArticle giữ nguyên) ...
-
+/**
+ * Lấy chi tiết bài viết theo ID
+ * GET /api/admin/news/{id}
+ */
 export const getArticleById = async (id: string): Promise<Article> => {
   try {
-    const response: AxiosResponse<Article> = await adminApi.get(`/${id}`);
-    return response.data;
+    return await axiosClient.get(`${ENDPOINT}/${id}`);
   } catch (error) {
     console.error(`Error fetching article with ID ${id}:`, error);
     throw error;
   }
 };
 
+/**
+ * Tạo bài viết mới
+ * POST /api/admin/news
+ */
 export const createArticle = async (articleData: Article): Promise<Article> => {
   try {
-    const { id, ...dataToSend } = articleData; 
-    const response: AxiosResponse<Article> = await adminApi.post('', dataToSend);
-    return response.data;
+    const { id, ...dataToSend } = articleData;
+    return await axiosClient.post(ENDPOINT, dataToSend);
   } catch (error) {
     console.error('Error creating article:', error);
     throw error;
   }
 };
 
+/**
+ * Cập nhật bài viết
+ * PUT /api/admin/news/{id}
+ */
 export const updateArticle = async (id: string, articleData: Article): Promise<Article> => {
   try {
-    const dataToSend = { ...articleData, id }; 
-    const response: AxiosResponse<Article> = await adminApi.put(`/${id}`, dataToSend);
-    return response.data;
+    const dataToSend = { ...articleData, id };
+    return await axiosClient.put(`${ENDPOINT}/${id}`, dataToSend);
   } catch (error) {
     console.error(`Error updating article with ID ${id}:`, error);
     throw error;
   }
 };
 
+/**
+ * Xóa bài viết
+ * DELETE /api/admin/news/{id}
+ */
 export const deleteArticle = async (id: string): Promise<void> => {
   try {
-    await adminApi.delete(`/${id}`);
+    await axiosClient.delete(`${ENDPOINT}/${id}`);
   } catch (error) {
     console.error(`Error deleting article with ID ${id}:`, error);
     throw error;
@@ -107,37 +76,33 @@ export const deleteArticle = async (id: string): Promise<void> => {
 
 
 // =================================================================
-// 4. CÁC HÀM GỌI API (PUBLIC) - ĐÃ SỬA
+// 2. CÁC HÀM GỌI API (PUBLIC)
 // =================================================================
 
 /**
- * Lấy danh sách tin tức đã xuất bản theo Menu (Mục tiêu: getPublishedNewsByMenu)
- * GET /api/news?menu={menu}
- * @param menu - Tên menu cần lấy bài viết (VD: homepage, blog, etc.)
+ * Lấy danh sách tin tức đã xuất bản theo Menu
+ * GET /api/admin/news/byMenu?menu={menu}
  */
-export const getPublishedNewsByMenu = async (menu: string): Promise<Article[]> => { // ĐÃ SỬA HÀM NÀY
-    try {
-        // Gọi đến Public Controller /api/news với tham số menu
-        const response: AxiosResponse<Article[]> = await publicApi.get('/byMenu', { 
-            params: { menu } 
-        });
-        return response.data;
-    } catch (error) {
-        console.error(`Error fetching published news for menu ${menu}:`, error);
-        throw error;
-    }
+export const getPublishedNewsByMenu = async (menu: string): Promise<Article[]> => {
+  try {
+    return await axiosClient.get(`${ENDPOINT}/byMenu`, {
+      params: { menu }
+    });
+  } catch (error) {
+    console.error(`Error fetching published news for menu ${menu}:`, error);
+    throw error;
+  }
 };
 
 /**
- * Lấy chi tiết bài viết công khai (dành cho NewsDetailPage)
- * GET /api/news/{id}
+ * Lấy chi tiết bài viết công khai
+ * GET /api/admin/news/{id}
  */
 export const getPublicArticleById = async (id: string): Promise<Article> => {
-    try {
-        const response: AxiosResponse<Article> = await publicApi.get(`/${id}`);
-        return response.data;
-    } catch (error) {
-        console.error(`Error fetching public article with ID ${id}:`, error);
-        throw error;
-    }
+  try {
+    return await axiosClient.get(`${ENDPOINT}/${id}`);
+  } catch (error) {
+    console.error(`Error fetching public article with ID ${id}:`, error);
+    throw error;
+  }
 };

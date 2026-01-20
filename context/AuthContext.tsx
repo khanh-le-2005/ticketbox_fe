@@ -4,7 +4,7 @@ import React, { createContext, useState, useEffect, ReactNode, useContext } from
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '../api/authApi';
 // Import các interface nếu bạn đã tách file, hoặc định nghĩa tạm ở đây
-import { LoginRequestDTO, RegisterRequestDTO } from '../api/authInterfaces';
+import { LoginRequestDTO, RegisterRequestDTO } from '../type/authInterfaces.type';
 
 // Định nghĩa kiểu User cho Context
 export interface User {
@@ -40,7 +40,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         try {
           // Khôi phục user từ localStorage
           setUser(JSON.parse(storedUser));
-          
+
           // (Tùy chọn) Gọi API getProfile để lấy thông tin mới nhất và check token còn sống không
           // await authApi.getProfile(); 
         } catch (error) {
@@ -63,7 +63,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Xử lý dữ liệu trả về từ Backend
       // Cấu trúc mong đợi: { data: { token: "...", role: "...", ... } }
       // (Lưu ý: axiosClient có thể đã unwrap 1 lớp data rồi)
-      const data = response.data || response; 
+      const data = response.data || response;
 
       if (data && data.token) {
         // Lưu Token quan trọng nhất
@@ -106,8 +106,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.removeItem('jwtToken');
     localStorage.removeItem('user');
     // Xóa các dữ liệu tạm khác nếu có
-    localStorage.removeItem('myEventBookings'); 
-    
+    localStorage.removeItem('myEventBookings');
+
     setUser(null);
     navigate('/login');
   };

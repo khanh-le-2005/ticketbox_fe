@@ -2,26 +2,27 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FaTimes, FaRedo } from 'react-icons/fa';
 import { ContactInfo } from '../types';
 import VerificationApi from '../api/verification_api';
+import { OtpVerificationModalProps } from '@/type/Otpvspay.type';
 
-interface OtpVerificationModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    onConfirm: (otpCode: string) => void;
-    contactInfo: ContactInfo;
-}
+// interface OtpVerificationModalProps {
+//     isOpen: boolean;
+//     onClose: () => void;
+//     onConfirm: (otpCode: string) => void;
+//     contactInfo: ContactInfo;
+// }
 
-const OtpVerificationModal: React.FC<OtpVerificationModalProps> = ({ 
-    isOpen, 
-    onClose, 
-    onConfirm, 
-    contactInfo 
+const OtpVerificationModal: React.FC<OtpVerificationModalProps> = ({
+    isOpen,
+    onClose,
+    onConfirm,
+    contactInfo
 }) => {
     const [otp, setOtp] = useState<string[]>(new Array(6).fill(""));
     const [isLoading, setIsLoading] = useState(false);
-    
+
     // 🔥 CẬP NHẬT 1: Đặt thời gian 5 phút (300 giây)
-    const [timer, setTimer] = useState(300); 
-    
+    const [timer, setTimer] = useState(300);
+
     const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
     // Đếm ngược
@@ -91,9 +92,9 @@ const OtpVerificationModal: React.FC<OtpVerificationModalProps> = ({
         try {
             setIsLoading(true);
             console.log("Đang gửi lại OTP...");
-            
+
             const res = await VerificationApi.requestOtp(contactInfo.email);
-            
+
             if (res && res.success) {
                 alert("✅ Đã gửi lại mã OTP mới vào email!");
                 setTimer(300); // Reset lại 5 phút
@@ -112,9 +113,9 @@ const OtpVerificationModal: React.FC<OtpVerificationModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-60 p-4 backdrop-blur-sm">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden relative transform transition-all">
-                
+
                 <div className="bg-indigo-600 px-6 py-4 flex justify-between items-center">
                     <h3 className="text-xl font-bold text-white">Xác Thực OTP</h3>
                     <button onClick={onClose} className="text-white hover:text-gray-200 transition-colors">
@@ -152,27 +153,27 @@ const OtpVerificationModal: React.FC<OtpVerificationModalProps> = ({
 
                     {/* 🔥 CẬP NHẬT 4: Nút Gửi lại luôn hiển thị (nhưng disable khi đang đếm ngược nếu muốn chặt chẽ) */}
                     {/* Ở đây mình để logic: Nếu hết giờ (timer=0) MỚI cho ấn. Nếu bạn muốn ấn lúc nào cũng được thì bỏ đoạn `disabled={timer > 0}` đi */}
-                    
+
                     <div className="flex flex-col gap-3">
                         <button
                             onClick={handleVerify}
                             disabled={isLoading}
                             className={`w-full py-3 rounded-lg text-white font-bold text-lg shadow-md transition-all
-                                ${isLoading 
-                                    ? 'bg-gray-400 cursor-not-allowed' 
+                                ${isLoading
+                                    ? 'bg-gray-400 cursor-not-allowed'
                                     : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 hover:shadow-lg'}
                             `}
                         >
                             {isLoading ? "Đang xử lý..." : "XÁC NHẬN"}
                         </button>
 
-                        <button 
+                        <button
                             onClick={handleResend}
                             // Nếu muốn cho phép ấn bất cứ lúc nào -> Xóa dòng disabled={timer > 0} bên dưới đi
-                            disabled={isLoading || timer > 0} 
+                            disabled={isLoading || timer > 0}
                             className={`flex items-center justify-center gap-2 font-semibold transition-colors
-                                ${timer > 0 
-                                    ? 'text-gray-400 cursor-not-allowed' 
+                                ${timer > 0
+                                    ? 'text-gray-400 cursor-not-allowed'
                                     : 'text-indigo-600 hover:text-indigo-800 cursor-pointer'}
                             `}
                         >

@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { TicketSelection } from '../types';
 import TicketSelectionModal from './TicketSelectionModal';
-import ContactInfoModal, { ContactData } from './ContactInfoModal'; // Import type ContactData từ file mới
+import ContactInfoModal from './ContactInfoModal';
+import { ContactData } from '@/type/contact.type'; // Import type ContactData từ file đúng
 import EventReceiptModal from './EventReceiptModal';
 import PaymentStepModal from './PaymentStepModal';
-import BookingApi, { CreateBookingRequest } from '../api/bookingApi';
+import BookingApi from '../api/bookingApi';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 enum BookingStep {
     TICKET_SELECTION,
@@ -13,10 +16,11 @@ enum BookingStep {
     RECEIPT
 }
 
-const BookingModal: React.FC<{isOpen: boolean; onClose: () => void; event: any}> = ({ isOpen, onClose, event }) => {
+const BookingModal: React.FC<{ isOpen: boolean; onClose: () => void; event: any }> = ({ isOpen, onClose, event }) => {
     const [currentStep, setCurrentStep] = useState<BookingStep>(BookingStep.TICKET_SELECTION);
     const [ticketSelection, setTicketSelection] = useState<TicketSelection>({});
     const [bookingResult, setBookingResult] = useState<any>(null);
+    const [loading, setLoading] = useState(false);
 
     // Helper tạo Request ID
     const generateRequestId = () => {
@@ -32,38 +36,55 @@ const BookingModal: React.FC<{isOpen: boolean; onClose: () => void; event: any}>
     };
 
     // --- SỬA LOGIC: KHÔNG CÒN OTP ---
-    const handleContactAndBooking = async (data: ContactData) => {
-        try {
-            const cleanShowId = String(event.id);
-            if (!cleanShowId || cleanShowId === "NaN") { alert("Lỗi ID sự kiện"); return; }
+    // Trong BookingModal.tsx
 
-            const payload: CreateBookingRequest = {
-                showId: cleanShowId,
-                customerName: data.name,
-                customerEmail: data.email,
-                customerPhone: data.phone,
-                otp: data.otp, // Gửi OTP từ form
-                requestId: generateRequestId(),
-                tickets: Object.entries(ticketSelection).map(([code, qty]) => ({
-                    ticketTypeCode: code,
-                    quantity: Number(qty)
-                })).filter(t => t.quantity > 0)
+    const handleContactAndBooking = async (contactData: ContactData & { channel?: string }) => {
+        try {
+            setLoading(true);
+
+            // 👇 BƯỚC 1: Chuyển đổi tickets từ Object sang Array
+            // Giả sử selectedTickets đang là: { "VIP": 2, "STD": 1 }
+            // Cần chuyển thành: [{ ticketTypeCode: "VIP", quantity: 2 }, ...]
+
+            let formattedTickets = [];
+            // ticketSelection is a state variable: { "VIP": 2, "STD": 1 }
+            if (Array.isArray(ticketSelection)) {
+                formattedTickets = ticketSelection;
+            } else {
+                formattedTickets = Object.entries(ticketSelection)
+                    .map(([code, qty]) => ({
+                        ticketTypeCode: code,
+                        quantity: Number(qty)
+                    }))
+                    .filter((t) => t.quantity > 0);
+            }
+
+            const payload = {
+                showId: event.id,
+                tickets: formattedTickets,
+                customerName: contactData.name,
+                customerPhone: contactData.phone,
+                otp: contactData.otp,
+                customerEmail: (contactData.channel === 'ZALO' && !contactData.email)
+                    ? ""
+                    : contactData.email,
+                channel: contactData.channel
             };
 
-            // Gọi API
-            const res = await BookingApi.createBooking(payload);
+            console.log("Payload Final:", payload);
+            const response = await BookingApi.createBooking(payload);
 
-            if (res && res.success) {
-                setBookingResult(res.data);
-                setCurrentStep(BookingStep.PAYMENT); // Chuyển sang thanh toán QR luôn
-            } else {
-                alert(res.message || "Đặt vé thất bại");
+            if (response.data) {
+                setBookingResult(response.data);
+                setCurrentStep(BookingStep.PAYMENT);
+                toast.success("Đặt vé thành công! Vui lòng thanh toán.");
             }
 
         } catch (error: any) {
-            console.error("Lỗi đặt vé:", error);
-            const msg = error.response?.data?.message || "Lỗi kết nối server";
-            alert(`❌ ${msg}`);
+            console.error("Lỗi:", error);
+            // ...
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -101,7 +122,7 @@ const BookingModal: React.FC<{isOpen: boolean; onClose: () => void; event: any}>
                     onPaymentSuccess={handlePaymentSuccess}
                 />
             )}
-            
+
             {currentStep === BookingStep.RECEIPT && (
                 <EventReceiptModal
                     isOpen={true}

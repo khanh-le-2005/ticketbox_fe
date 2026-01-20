@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FaFacebook, FaInstagram, FaYoutube } from 'react-icons/fa';
+import { FaFacebook, FaInstagram, FaYoutube, FaTiktok  } from 'react-icons/fa';
 
 const Footer: React.FC = () => {
     return (
@@ -24,9 +24,9 @@ const Footer: React.FC = () => {
                     <div>
                         <h4 className="font-semibold text-lg mb-4">Hỗ trợ khách hàng</h4>
                          <ul className="space-y-2 text-sm">
-                            <li><a href="#" className="text-gray-400 hover:text-white">Câu hỏi thường gặp</a></li>
-                            <li><a href="#" className="text-gray-400 hover:text-white">Hotline: 1900 232323</a></li>
-                            <li><a href="#" className="text-gray-400 hover:text-white">Email: support@ticketgo.vn</a></li>
+                            {/* <li><a href="#" className="text-gray-400 hover:text-white">Câu hỏi thường gặp</a></li> */}
+                            <li><a href="#" className="text-gray-400 hover:text-white">Hotline: 0929009999</a></li>
+                            <li><a href="#" className="text-gray-400 hover:text-white">Email: momangshow@gmail.com</a></li>
                         </ul>
                     </div>
                     <div>
@@ -35,6 +35,8 @@ const Footer: React.FC = () => {
                             <a href="https://www.facebook.com/momangshowtamdao" className="text-gray-400 hover:text-white"><FaFacebook size={24} /></a>
                             <a href="https://www.instagram.com/momangtamdao/" className="text-gray-400 hover:text-white"><FaInstagram size={24} /></a>
                             <a href=" https://www.youtube.com/@momangshow " className="text-gray-400 hover:text-white"><FaYoutube size={24} /></a>
+                            <a href=" https://www.tiktok.com/@momangshow " className="text-gray-400 hover:text-white"><FaTiktok  size={20} /></a>
+
                         </div>
                     </div>
                 </div>

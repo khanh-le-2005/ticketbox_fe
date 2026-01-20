@@ -1,18 +1,6 @@
 import axiosClient from './axiosClient';
+import { Banner } from '@/type/indext';
 
-// =================================================================
-// 1. INTERFACE
-// =================================================================
-export interface Banner {
-  id?: string;
-  imageUrl: string;
-  title: string;
-  subtitle: string;
-  link: string;
-  menu: string;
-  displayOrder?: number;
-  isActive: boolean;
-}
 
 // Đường dẫn gốc khớp với Java Controller: @RequestMapping("/api/admin/banners")
 const ENDPOINT = '/admin/banners';

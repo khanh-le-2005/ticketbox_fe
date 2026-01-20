@@ -21,7 +21,7 @@ const QrVerificationModal: React.FC<QrVerificationModalProps> = ({
 
 
     return (
-        <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-center p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 bg-black/60 z-[1000] flex justify-center items-center p-4 backdrop-blur-sm">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-md relative animate-fade-in-up overflow-hidden">
 
                 {/* Header */}

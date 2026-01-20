@@ -1,6 +1,6 @@
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 
-const BASE_URL = 'https://api.momangshow.vn/api'; 
+const BASE_URL = 'https://api.momangshow.vn/api';
 
 const axiosClient: AxiosInstance = axios.create({
     baseURL: BASE_URL,
@@ -15,16 +15,17 @@ const axiosClient: AxiosInstance = axios.create({
 axiosClient.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
         const token = localStorage.getItem('jwtToken');
-        
+
         // Những API không cần Token (Public)
         const publicEndpoints = [
-            '/auth/login', 
+            '/auth/login',
             // '/auth/register', 
-            '/shows', 
-            '/images', 
-            '/verification'
+            '/shows',
+            '/images',
+            '/verification',
+            '/hotels'
         ];
-        
+
         // Check xem URL hiện tại có phải public không
         const isPublic = publicEndpoints.some(endpoint => config.url?.includes(endpoint));
 
@@ -40,7 +41,7 @@ axiosClient.interceptors.request.use(
 // --- 2. RESPONSE INTERCEPTOR (Xử lý dữ liệu trả về) ---
 axiosClient.interceptors.response.use(
     (response) => {
-        return response.data; 
+        return response.data;
     },
     async (error: any) => {
         // Xử lý lỗi chung (401, 403, 500...)

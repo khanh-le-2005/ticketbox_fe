@@ -1,6 +1,31 @@
-// ===============================
-// API RESPONSE CHUẨN (DÙNG CHUNG)
-// ===============================
+import React from "react"; 
+
+export interface OtpVerificationModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: (otpCode: string) => void;
+    contactInfo: ContactInfo;
+}
+
+export interface ContactInfo {
+    email: string;
+    phone: string;
+}
+
+export interface PaymentStepModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  paymentData: any;
+  onPaymentSuccess: () => void;
+}
+export interface ProtectedRouteProps {
+  children: React.ReactNode;
+  allowedRoles?: string[]; 
+}
+
+
+
+
 export interface ApiResponse<T = any> {
   success: boolean;
   message?: string;
@@ -8,9 +33,6 @@ export interface ApiResponse<T = any> {
   code?: string;
 }
 
-// ===============================
-// OTP REQUEST
-// ===============================
 export interface OtpSendRequest {
   email: string;
 }
@@ -23,32 +45,22 @@ export interface OtpVerifyRequest {
 export interface OtpResendRequest {
   email: string;
 }
-
-// ===============================
-// OTP RESPONSE
-// ===============================
-
-// Gửi OTP
 export interface OtpSendResponse extends ApiResponse<{
   email: string;
-  remainingTime: number; // giây
+  remainingTime: number; 
 }> {}
 
-// Xác thực OTP
 export interface OtpVerifyResponse extends ApiResponse<{
   verified: boolean;
-  token?: string; // có thể có JWT sau khi verify
+  token?: string; 
 }> {}
 
-// Gửi lại OTP
+
 export interface OtpResendResponse extends ApiResponse<{
   email: string;
   remainingTime: number;
 }> {}
 
-// ===============================
-// CLIENT SIDE OTP STATE
-// ===============================
 export interface OtpInfo {
   email: string;
   remainingTime: number;
@@ -58,9 +70,7 @@ export interface OtpInfo {
   isExpired: boolean;
 }
 
-// ===============================
-// OTP STATUS
-// ===============================
+
 export interface OtpStatus {
   hasOtp: boolean;
   remainingTime: number;
@@ -68,28 +78,19 @@ export interface OtpStatus {
   isLocked: boolean;
 }
 
-// ===============================
-// OTP CONFIG
-// ===============================
 export interface OtpConfig {
-  length: number;        // 6
-  expiryMinutes: number; // 5
-  maxAttempts: number;   // 5
-  resendDelay: number;   // 30s
+  length: number;       
+  expiryMinutes: number; 
+  maxAttempts: number;   
+  resendDelay: number;   
 }
 
-// ===============================
-// ERROR FORMAT (OPTIONAL)
-// ===============================
 export interface OtpError {
   code: string;
   message: string;
   retryAfter?: number;
 }
 
-// ===============================
-// SESSION (OPTIONAL - FRONTEND)
-// ===============================
 export interface OtpSession {
   sessionId: string;
   email: string;

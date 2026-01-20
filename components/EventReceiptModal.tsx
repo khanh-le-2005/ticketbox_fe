@@ -10,7 +10,7 @@ interface EventReceiptModalProps {
 
 const EventReceiptModal: React.FC<EventReceiptModalProps> = ({ isOpen, onClose, details }) => {
     const navigate = useNavigate();
-    
+
     if (!isOpen) return null;
 
     // 👇 SỬA ĐOẠN NÀY: Ưu tiên lấy các trường ID có thể có
@@ -22,9 +22,9 @@ const EventReceiptModal: React.FC<EventReceiptModalProps> = ({ isOpen, onClose, 
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-60 p-4 backdrop-blur-sm">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden relative animate-in fade-in zoom-in duration-300">
-                
+
                 {/* Header Xanh lá báo thành công */}
                 <div className="bg-green-600 px-6 py-8 text-center">
                     <div className="mx-auto w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4 shadow-lg animate-bounce">

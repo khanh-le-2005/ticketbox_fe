@@ -5,8 +5,7 @@ import Header from '../components/Header';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import EventCard from '../components/EventCard';
-import showApi from '../api/showApi'; // Đảm bảo import đúng đường dẫn API
-
+import showApi from '../api/showApi'; 
 // Hàm format tiền tệ
 const formatCurrency = (val: number) => 
     new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(val);
@@ -49,18 +48,9 @@ const TourismPage: React.FC = () => {
                         description: show.description
                     };
                 });
-
-                // 2. LỌC DỮ LIỆU (Tùy chọn)
-                // Vì chưa có field Category, ta có thể lọc tạm theo tên chương trình
-                // Nếu muốn hiển thị tất cả thì bỏ đoạn .filter() này đi
                 const tourismEvents = mappedEvents.filter((event: any) => {
-                    // Lọc những show có tên chứa từ khóa liên quan du lịch (ví dụ)
-                    // Hoặc tạm thời hiển thị tất cả nếu dữ liệu demo ít
                     return true; 
-                    // return event.title.toLowerCase().includes('tour') || event.title.toLowerCase().includes('du lịch');
                 });
-
-                // Sắp xếp sự kiện mới nhất
                 const sortedEvents = tourismEvents.sort((a: any, b: any) => 
                     new Date(b.date).getTime() - new Date(a.date).getTime()
                 );

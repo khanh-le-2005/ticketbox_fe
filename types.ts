@@ -245,11 +245,6 @@ export interface Event {
     price?: number;        // Giá thấp nhất để hiển thị "Từ..."
 }
 
-
-
-// đặt phòng 
-
-// Enum trạng thái phòng như backend
 export enum RoomStatus {
   AVAILABLE = 'AVAILABLE',
   OCCUPIED = 'OCCUPIED',

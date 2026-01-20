@@ -12,6 +12,7 @@ import Footer from "../components/Footer";
 
 // Import API
 import { getPublicArticleById, Article } from "../api/api_article";
+import FloatButton from "@/components/FloatButton";
 
 export const NewsDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -95,9 +96,14 @@ export const NewsDetailPage: React.FC = () => {
   const safeContent = DOMPurify.sanitize(article.content);
 
   return (
-    <div className="bg-gray-50 min-h-screen flex flex-col relative">
+    // <div className="bg-gray-50 min-h-screen flex flex-col relative">
+    //   <Header />
+    //   <Navbar />
+    <div className="bg-gray-50 min-h-screen relative">
       <Header />
-      <Navbar />
+      <div className="hidden md:block">
+        <Navbar />
+      </div>
 
       <main className="flex-grow pt-8 pb-16">
         <div className="container mx-auto px-4 max-w-7xl">
@@ -202,62 +208,7 @@ export const NewsDetailPage: React.FC = () => {
 
       <Footer />
 
-      {/* 👇 FLOAT BUTTON ZALO 👇 */}
-      <a
-        href="https://zalo.me/0963310889" // ⚠️ Thay số Zalo của bạn vào đây
-        target="_blank"
-        rel="noopener noreferrer"
-        className="fixed bottom-8 right-8 z-50 group"
-        title="Chat Zalo ngay"
-      >
-        <div className="relative flex items-center justify-center w-14 h-14 bg-blue-600 rounded-full shadow-2xl hover:scale-110 transition-transform duration-300 ring-4 ring-white">
-          {/* Hiệu ứng sóng (Ping) */}
-          <span className="absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75 animate-ping"></span>
-
-          {/* Icon Zalo */}
-          <img
-            src="/zalo.webp"
-            alt="Zalo"
-            className="w-8 h-8 object-contain relative z-10"
-          />
-
-          {/* Tooltip nhỏ hiện khi hover */}
-          <span className="absolute right-full mr-3 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-            Tư vấn ngay
-          </span>
-        </div>
-      </a>
-      <a
-        href="tel:0929009999" // ⚠️ Thay số ĐIỆN THOẠI nghe gọi vào đây
-        className="fixed bottom-28 right-8 z-50 group"
-        title="Gọi ngay"
-      >
-        <div className="relative flex items-center justify-center w-14 h-14 bg-green-500 rounded-full shadow-2xl hover:scale-110 transition-transform duration-300 ring-4 ring-white">
-          {/* Hiệu ứng sóng (Ping) */}
-          <span className="absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 animate-ping"></span>
-
-          {/* Icon Phone SVG */}
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={2}
-            stroke="currentColor"
-            className="w-7 h-7 text-white relative z-10 animate-bounce-slow"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"
-            />
-          </svg>
-
-          {/* Tooltip */}
-          <span className="absolute right-full mr-3 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-            Gọi ngay
-          </span>
-        </div>
-      </a>
+      <FloatButton />
     </div>
   );
 };

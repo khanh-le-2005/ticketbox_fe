@@ -4,33 +4,20 @@ import {
   OtpVerifyResponse,
   OtpResendResponse,
   OtpError,
-} from "../api/otp_interface";
+} from "../type/Otpvspay.type";
 
 class OtpApi {
-  /**
-   * Gửi OTP về email
-   * POST /otp/send
-   */
   async sendOtp(email: string): Promise<OtpSendResponse> {
     try {
       const response = await axiosClient.post<OtpSendResponse>(
         "/otp/send",
         { email }
       );
-
-      // ✅ BẮT BUỘC trả về response.data
       return response.data;
-
     } catch (error: any) {
       throw this.handleError(error);
     }
   }
-
-
-  /**
-   * Xác thực OTP
-   * POST /otp/verify
-   */
   async verify(
     email: string,
     otp: string
@@ -41,27 +28,20 @@ class OtpApi {
         message: "Email và OTP là bắt buộc",
       } as OtpError;
     }
-
     try {
       const response = await axiosClient.post<OtpVerifyResponse>(
         "/otp/verify",
         {
           email,
-          otpCode: otp, // ⚠️ QUAN TRỌNG: backend thường dùng otpCode
+          otpCode: otp, 
         }
       );
-
-      // ✅ CHỈ TRẢ VỀ DATA
       return response.data;
 
     } catch (error: any) {
       throw this.handleError(error);
     }
   }
-  /**
-   * Gửi lại OTP
-   * POST /otp/resend
-   */
   async resend(email: string): Promise<OtpResendResponse> {
     if (!email) {
       throw {
@@ -69,23 +49,17 @@ class OtpApi {
         message: "Email không được để trống",
       } as OtpError;
     }
-
     try {
       const response = await axiosClient.post<OtpResendResponse>(
         "/otp/resend",
         { email }
       );
-
-      // ✅ CHỈ TRẢ VỀ DATA
       return response.data;
 
     } catch (error: any) {
       throw this.handleError(error);
     }
   }
-  /*
-   * Chuẩn hoá lỗi từ backend
-   */
   private handleError(error: any): OtpError {
     return {
       code:

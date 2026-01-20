@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from 'react-router-dom';
-import axiosClient from "../api/axiosClient";
+import hotelApi from "../api/hotelApi";
 import Header from "../components/Header";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -12,78 +12,108 @@ import {
   FaMapMarkerAlt,
   FaBed,
   FaBuilding,
+  FaCalendarAlt
 } from "react-icons/fa";
 import { getImageUrl } from "../api/api_image";
-
-// --- INTERFACE ---
-interface ApiHotelResponse {
-  id: string;
-  name: string;
-  address: string;
-  description: string;
-  galleryImageIds: number[];
-  minPrice: number;
-  roomTypes?: {
-    code: string;
-    name: string;
-    totalRooms: number;
-    priceWeekday: number;
-  }[];
-}
-
-const locations = [
-  "Tất cả", "Hà Nội", "TP. Hồ Chí Minh", "Phú Quốc", 
-  "Hội An", "Đà Nẵng", "Nha Trang", "Huế", "Hạ Long"
-];
+import { ApiHotelResponse } from "../type/hotel.type";
+import FloatButton from "@/components/FloatButton";
 
 const BookingPage: React.FC = () => {
   const navigate = useNavigate();
-  
+
   // --- STATE ---
   const [hotels, setHotels] = useState<ApiHotelResponse[]>([]);
-  const [filteredHotels, setFilteredHotels] = useState<ApiHotelResponse[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [toastError, setToastError] = useState("");
 
-  // Search State
-  const [selectedLocation, setSelectedLocation] = useState("Tất cả");
+  // --- SEARCH STATE ---
+  const [keyword, setKeyword] = useState("");
+  const [checkInDate, setCheckInDate] = useState("");
+  const [checkOutDate, setCheckOutDate] = useState("");
 
   const resultsRef = useRef<HTMLDivElement>(null);
 
-  // --- FETCH DATA ---
-  useEffect(() => {
-    const fetchHotels = async () => {
-      setIsLoading(true);
-      try {
-        const res: any = await axiosClient.get("/hotels");
-        let hotelList: ApiHotelResponse[] = [];
-        
-        if (res?.data?.content) hotelList = res.data.content;
-        else if (Array.isArray(res?.data)) hotelList = res.data;
-        else if (Array.isArray(res)) hotelList = res;
+  // Helper: Lấy ngày hôm nay YYYY-MM-DD
+  const getToday = () => new Date().toISOString().split('T')[0];
 
-        setHotels(hotelList);
-        setFilteredHotels(hotelList); 
-      } catch (error) {
-        console.error("Lỗi tải danh sách:", error);
-        setToastError("Không thể tải danh sách khách sạn.");
-      } finally {
-        setIsLoading(false);
+  // --- 1. HÀM TẢI DANH SÁCH MẶC ĐỊNH (GET ALL) ---
+  const fetchDefaultHotels = async () => {
+    setIsLoading(true);
+    try {
+      const res: any = await hotelApi.getAll({ page: 0, size: 20 });
+      
+      let hotelList: ApiHotelResponse[] = [];
+      if (res?.data?.content) {
+        hotelList = res.data.content;
+      } else if (Array.isArray(res?.data)) {
+        hotelList = res.data;
+      } else if (Array.isArray(res)) {
+        hotelList = res;
       }
-    };
-    fetchHotels();
-  }, []);
 
-  // --- HANDLERS ---
-  const handleSearch = () => {
-    if (selectedLocation === "Tất cả") {
-        setFilteredHotels(hotels);
-    } else {
-        const filtered = hotels.filter(h => h.address.includes(selectedLocation));
-        setFilteredHotels(filtered);
+      setHotels(hotelList);
+    } catch (error) {
+      console.error("Lỗi tải danh sách:", error);
+      setToastError("Không thể tải danh sách khách sạn.");
+    } finally {
+      setIsLoading(false);
     }
-    resultsRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+
+  // --- 2. HÀM TÌM KIẾM (SEARCH) ---
+  const handleSearch = async () => {
+    // Nếu không nhập gì cả -> Gọi lại Default
+    if (!keyword.trim() && (!checkInDate || !checkOutDate)) {
+        fetchDefaultHotels();
+        return;
+    }
+
+    setIsLoading(true);
+    try {
+      const params: any = {};
+      if (keyword.trim()) params.q = keyword.trim();
+      
+      if (checkInDate && checkOutDate) {
+        if (new Date(checkOutDate) <= new Date(checkInDate)) {
+          setToastError("Ngày trả phòng phải sau ngày nhận phòng.");
+          setIsLoading(false);
+          return;
+        }
+        params.checkIn = checkInDate;
+        params.checkOut = checkOutDate;
+      }
+
+      // Gọi API Search
+      const res: any = await hotelApi.search(params);
+      
+      let hotelList: ApiHotelResponse[] = [];
+      
+      // Xử lý các cấu trúc response khác nhau
+      if (res?.success && Array.isArray(res.data)) {
+        hotelList = res.data;
+      } else if (Array.isArray(res?.data)) {
+        hotelList = res.data;
+      } else if (res?.data?.content) {
+        hotelList = res.data.content;
+      } else if (Array.isArray(res)) {
+        hotelList = res;
+      }
+
+      setHotels(hotelList);
+      resultsRef.current?.scrollIntoView({ behavior: "smooth" });
+
+    } catch (error) {
+      console.error("Lỗi tìm kiếm:", error);
+      setToastError("Lỗi khi tìm kiếm khách sạn.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // --- EFFECT: Load lần đầu ---
+  useEffect(() => {
+    fetchDefaultHotels();
+  }, []);
 
   const handleViewDetail = (hotelId: string) => {
     navigate(`/hotel/${hotelId}`);
@@ -96,47 +126,91 @@ const BookingPage: React.FC = () => {
   return (
     <div className="bg-gray-50 min-h-screen relative">
       <Header />
-      <Navbar />
+
+      <div className="hidden lg:block">
+        <Navbar />
+      </div>
       <ErrorToast message={toastError} isVisible={!!toastError} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        {/* THANH TÌM KIẾM */}
-        <div className="bg-white p-6 rounded-lg shadow-lg mb-8 border border-gray-100">
-          <h1 className="text-3xl font-bold text-gray-800 mb-4 flex items-center">
+
+        {/* --- THANH TÌM KIẾM --- */}
+        <div className="bg-white p-4 md:p-6 rounded-xl shadow-lg mb-8 border border-gray-100">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4 md:mb-6 flex items-center">
             <FaBuilding className="text-orange-500 mr-3" /> Tìm Khách Sạn
           </h1>
-          <div className="flex gap-4 items-end">
-            <div className="flex-grow">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                <FaMapMarkerAlt className="inline mr-2 text-gray-400" /> Chọn địa điểm
-              </label>
-              <select 
-                className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-orange-500 outline-none"
-                value={selectedLocation}
-                onChange={(e) => setSelectedLocation(e.target.value)}
-              >
-                {locations.map((loc) => (
-                  <option key={loc} value={loc}>{loc}</option>
-                ))}
-              </select>
+
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 items-end">
+            {/* 1. Từ khóa */}
+            <div className="md:col-span-5 relative">
+              <label className="block text-xs font-bold text-gray-500 mb-1 ml-1">Điểm đến / Tên khách sạn</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <FaMapMarkerAlt className="text-orange-500" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="VD: Đà Nẵng, Hilton..."
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none transition-all"
+                  value={keyword}
+                  onChange={(e) => setKeyword(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                />
+              </div>
             </div>
-            
-            <button
-              onClick={handleSearch}
-              className="bg-orange-500 text-white font-bold py-3 px-8 rounded-lg hover:bg-orange-600 shadow-md transition-all flex items-center gap-2"
-            >
-              <FaSearch /> Tìm Kiếm
-            </button>
+
+            {/* 2. Ngày nhận */}
+            <div className="md:col-span-3 relative">
+              <label className="block text-xs font-bold text-gray-500 mb-1 ml-1">Nhận phòng</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <FaCalendarAlt className="text-orange-500" />
+                </div>
+                <input
+                  type="date"
+                  min={getToday()}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none transition-all text-sm"
+                  value={checkInDate}
+                  onChange={(e) => setCheckInDate(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* 3. Ngày trả */}
+            <div className="md:col-span-3 relative">
+              <label className="block text-xs font-bold text-gray-500 mb-1 ml-1">Trả phòng</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <FaCalendarAlt className="text-orange-500" />
+                </div>
+                <input
+                  type="date"
+                  min={checkInDate || getToday()}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none transition-all text-sm"
+                  value={checkOutDate}
+                  onChange={(e) => setCheckOutDate(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* 4. Nút Tìm kiếm */}
+            <div className="md:col-span-1">
+              <button
+                onClick={handleSearch}
+                className="w-full bg-orange-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-orange-600 shadow-md transition-all flex items-center justify-center gap-2 h-[50px]"
+              >
+                <FaSearch />
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* KẾT QUẢ TÌM KIẾM */}
+        {/* --- KẾT QUẢ TÌM KIẾM --- */}
         <div ref={resultsRef}>
           <div className="flex justify-between items-center mb-6">
-             <h2 className="text-2xl font-bold text-gray-800">
-                Khách sạn tại {selectedLocation} ({filteredHotels.length})
-             </h2>
+            <h2 className="text-2xl font-bold text-gray-800">
+              Danh sách khách sạn ({hotels.length})
+            </h2>
           </div>
 
           {isLoading ? (
@@ -145,11 +219,27 @@ const BookingPage: React.FC = () => {
                 <div key={n} className="bg-white h-80 rounded-lg shadow animate-pulse"></div>
               ))}
             </div>
-          ) : filteredHotels.length > 0 ? (
+          ) : hotels.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredHotels.map((hotel) => {
+              {hotels.map((hotel) => {
                 const totalRooms = calculateTotalRooms(hotel.roomTypes || []);
-                const startPrice = hotel.minPrice || hotel.roomTypes?.[0]?.priceWeekday || 0;
+                
+                // 👇 --- SỬA LỖI GIÁ 0Đ Ở ĐÂY ---
+                let startPrice = 0;
+                if (hotel.minPrice && hotel.minPrice > 0) {
+                    startPrice = hotel.minPrice;
+                } else if (hotel.roomTypes && hotel.roomTypes.length > 0) {
+                    // Lọc lấy giá nhỏ nhất từ các loại phòng
+                    const prices = hotel.roomTypes
+                        .map((rt: any) => rt.price || rt.priceMonToThu || rt.priceWeekday || 0)
+                        .filter((p: number) => p > 0);
+                    if (prices.length > 0) startPrice = Math.min(...prices);
+                }
+                // 👆 ----------------------------
+
+                // Logic hiển thị "Còn x phòng" khi search theo ngày
+                const availableRoomCount = hotel.roomTypes?.reduce((acc, rt: any) => acc + (rt.availableRooms ?? rt.totalRooms), 0);
+                const isCheckDateMode = checkInDate && checkOutDate;
 
                 return (
                   <div
@@ -165,7 +255,10 @@ const BookingPage: React.FC = () => {
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                       />
                       <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center">
-                        <FaBed className="mr-1.5 text-orange-400" /> {totalRooms} phòng
+                        <FaBed className="mr-1.5 text-orange-400" /> 
+                        {isCheckDateMode && availableRoomCount !== undefined 
+                          ? `Còn ${availableRoomCount} phòng` 
+                          : `${totalRooms} phòng`}
                       </div>
                     </div>
 
@@ -205,61 +298,14 @@ const BookingPage: React.FC = () => {
           ) : (
             <div className="text-center py-20 bg-white rounded-lg shadow">
               <h3 className="text-xl font-bold text-gray-400">Không tìm thấy khách sạn nào</h3>
-              <p className="text-gray-500 mt-2">Vui lòng thử địa điểm khác.</p>
+              <p className="text-gray-500 mt-2">Vui lòng thử từ khóa hoặc ngày khác.</p>
             </div>
           )}
         </div>
       </main>
 
       <Footer />
-
-      {/* 👇 FLOAT BUTTON ZALO (Giống trang chủ) 👇 */}
-      <a
-        href="https://zalo.me/0963310889" // ⚠️ Thay số Zalo của bạn
-        target="_blank"
-        rel="noopener noreferrer"
-        className="fixed bottom-8 right-8 z-50 group"
-        title="Chat Zalo ngay"
-      >
-        <div className="relative flex items-center justify-center w-14 h-14 bg-blue-600 rounded-full shadow-2xl hover:scale-110 transition-transform duration-300 ring-4 ring-white">
-            <span className="absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75 animate-ping"></span>
-            <img 
-                src="/zalo.webp" 
-                alt="Zalo" 
-                className="w-8 h-8 object-contain relative z-10" 
-            />
-            <span className="absolute right-full mr-3 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                Tư vấn đặt phòng
-            </span>
-        </div>
-      </a>
-      <a
-  href="tel:0929009999" // ⚠️ Thay số ĐIỆN THOẠI nghe gọi vào đây
-  className="fixed bottom-28 right-8 z-50 group" 
-  title="Gọi ngay"
->
-  <div className="relative flex items-center justify-center w-14 h-14 bg-green-500 rounded-full shadow-2xl hover:scale-110 transition-transform duration-300 ring-4 ring-white">
-    {/* Hiệu ứng sóng (Ping) */}
-    <span className="absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 animate-ping"></span>
-
-    {/* Icon Phone SVG */}
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={2}
-      stroke="currentColor"
-      className="w-7 h-7 text-white relative z-10 animate-bounce-slow"
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
-    </svg>
-
-    {/* Tooltip */}
-    <span className="absolute right-full mr-3 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-      Gọi ngay
-    </span>
-  </div>
-</a>
+      <FloatButton />
     </div>
   );
 };

@@ -66,6 +66,27 @@ const hotelApi = {
   },
 
   /**
+   * Universal Search (Từ khóa + Ngày - Trả về số phòng trống thực tế)
+   * GET /api/hotels/search?q=...&checkIn=...&checkOut=...
+   */
+  search: (params: { q?: string; checkIn?: string; checkOut?: string }) => {
+    const cleanParams: any = {};
+
+    if (params.q && params.q.trim() !== "") {
+      cleanParams.q = params.q.trim();
+    }
+    if (params.checkIn && params.checkIn.trim() !== "") {
+      cleanParams.checkIn = params.checkIn;
+    }
+    if (params.checkOut && params.checkOut.trim() !== "") {
+      cleanParams.checkOut = params.checkOut;
+    }
+
+    // 👇 SỬA DÒNG NÀY: Thêm "-keyword" vào sau chữ search
+    return axiosClient.get<ApiResponse<any>>("/hotels/search-keyword", { params: cleanParams });
+  },
+
+  /**
    * Lấy chi tiết khách sạn theo ID
    * GET /api/hotels/{id}
    */

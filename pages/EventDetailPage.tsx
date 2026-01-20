@@ -14,39 +14,47 @@ import {
   FaEnvelope,
   FaShareAlt,
   FaImages,
+  FaTimes,         // Icon đóng
+  FaChevronLeft,   // Icon trái
+  FaChevronRight   // Icon phải
 } from "react-icons/fa";
-
+// import { FaPhone } from "react-icons/fa";
 // Import API
 import showApi from "../api/showApi";
 import { getImageUrl } from "../api/api_image";
+import FloatButton from "@/components/FloatButton";
+import zaloLogo from "../assets/zalo.webp";
 
 // Helper format tiền
 const formatCurrency = (val: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
     val
   );
-
 const EventDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
   const [event, setEvent] = useState<any | null>(null);
-  const [relatedEvents, setRelatedEvents] = useState<any[]>([]); // Danh sách liên quan
+  const [relatedEvents, setRelatedEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+
+  // --- STATE LIGHTBOX (XEM ẢNH PHÓNG TO) ---
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+  const [photoIndex, setPhotoIndex] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
       if (!id) return;
       try {
         setLoading(true);
-        window.scrollTo(0, 0); // Quan trọng: Cuộn lên đầu khi chuyển trang
+        window.scrollTo(0, 0);
 
         // --- 1. LẤY CHI TIẾT SỰ KIỆN HIỆN TẠI ---
         const detailRes: any = await showApi.getById(id);
         const showData = detailRes.data || detailRes;
 
-        // Xử lý ảnh chính (Banner -> Gallery[0] -> Placeholder)
+        // Xử lý ảnh chính
         let mainImageUrl = "https://placehold.co/1200x500?text=No+Banner";
         if (showData.bannerImageId) {
           mainImageUrl = getImageUrl(showData.bannerImageId);
@@ -65,6 +73,13 @@ const EventDetailPage: React.FC = () => {
           );
         }
 
+        // Quan trọng: Thêm ảnh chính vào đầu danh sách gallery để slide đẹp hơn
+        if (galleryUrls.length === 0 && mainImageUrl) {
+          galleryUrls.push(mainImageUrl);
+        } else if (galleryUrls.length > 0 && !galleryUrls.includes(mainImageUrl)) {
+          galleryUrls.unshift(mainImageUrl);
+        }
+
         // Xử lý địa chỉ
         const addr = showData.address || {};
         const fullLocation =
@@ -77,15 +92,14 @@ const EventDetailPage: React.FC = () => {
           ...showData,
           id: String(showData.id),
           image: mainImageUrl,
-          gallery: galleryUrls,
+          gallery: galleryUrls, // Mảng ảnh đầy đủ để slide
           fullLocation: fullLocation,
           performers: Array.isArray(showData.performers)
             ? showData.performers
             : [],
         });
 
-        // --- 2. LẤY SỰ KIỆN LIÊN QUAN (Logic Inline) ---
-        // Gọi API lấy tất cả show, sau đó lọc và lấy 3 cái khác show hiện tại
+        // --- 2. LẤY SỰ KIỆN LIÊN QUAN ---
         const allShowsRes: any = await showApi.getAllShows();
         const allShowsData =
           allShowsRes.data?.content ||
@@ -93,17 +107,15 @@ const EventDetailPage: React.FC = () => {
 
         if (Array.isArray(allShowsData)) {
           const others = allShowsData
-            .filter((item: any) => String(item.id) !== id) // Loại bỏ show đang xem
-            .slice(0, 3) // Lấy 3 show
+            .filter((item: any) => String(item.id) !== id)
+            .slice(0, 3)
             .map((item: any) => {
-              // Xử lý ảnh thumbnail
               let thumbUrl = "https://placehold.co/600x400?text=No+Image";
               const imgId =
                 item.bannerImageId ||
                 (item.galleryImageIds && item.galleryImageIds[0]);
               if (imgId) thumbUrl = getImageUrl(imgId);
 
-              // Xử lý giá thấp nhất
               let minPrice = 0;
               if (item.ticketTypes?.length > 0) {
                 minPrice = Math.min(
@@ -133,10 +145,28 @@ const EventDetailPage: React.FC = () => {
     fetchData();
   }, [id]);
 
-  // Hàm xử lý khi click vào sự kiện liên quan
   const handleRelatedClick = (relatedId: string) => {
     navigate(`/event/${relatedId}`);
-    // useEffect sẽ tự chạy lại và cuộn lên đầu trang
+  };
+
+  // --- LIGHTBOX HANDLERS (LOGIC MỚI) ---
+  const openLightbox = (index: number) => {
+    setPhotoIndex(index);
+    setIsGalleryOpen(true);
+  };
+
+  const closeLightbox = () => setIsGalleryOpen(false);
+
+  const nextPhoto = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!event?.gallery) return;
+    setPhotoIndex((prev) => (prev + 1) % event.gallery.length);
+  };
+
+  const prevPhoto = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!event?.gallery) return;
+    setPhotoIndex((prev) => (prev + event.gallery.length - 1) % event.gallery.length);
   };
 
   if (loading) {
@@ -154,13 +184,23 @@ const EventDetailPage: React.FC = () => {
   const eventDate = new Date(event.startTime);
 
   return (
-    <div className="bg-gray-50 min-h-screen flex flex-col">
+    // <div className="bg-gray-50 min-h-screen flex flex-col">
+    //   <Header />
+    //   <Navbar />
+    <div className="bg-gray-50 min-h-screen relative">
       <Header />
-      <Navbar />
+
+      {/* 👇 SỬA ĐOẠN NÀY: Ẩn Navbar trên mobile để không bị trùng 2 menu */}
+      <div className="hidden lg:block">
+        <Navbar />
+      </div>
 
       <main className="flex-grow">
-        {/* --- BANNER --- */}
-        <div className="relative w-full h-[300px] md:h-[450px] bg-gray-900 overflow-hidden">
+        {/* --- BANNER (CLICK ĐỂ MỞ LIGHTBOX) --- */}
+        <div
+          className="relative w-full h-[300px] md:h-[450px] bg-gray-900 overflow-hidden cursor-pointer group"
+          onClick={() => openLightbox(0)} // Mở ảnh đầu tiên
+        >
           <div
             className="absolute inset-0 bg-cover bg-center blur-sm opacity-50 scale-110"
             style={{ backgroundImage: `url('${event.image}')` }}
@@ -169,14 +209,18 @@ const EventDetailPage: React.FC = () => {
             <img
               src={event.image}
               alt={event.name}
-              className="h-full w-auto max-w-full object-contain shadow-2xl rounded-md"
+              className="h-full w-auto max-w-full object-contain shadow-2xl rounded-md transition-transform duration-500 group-hover:scale-105"
               onError={(e) =>
-                (e.currentTarget.src =
-                  "https://placehold.co/1200x500?text=Error")
+              (e.currentTarget.src =
+                "https://placehold.co/1200x500?text=Error")
               }
             />
           </div>
-          <div className="absolute inset-0 bg-black bg-opacity-20"></div>
+          <div className="absolute inset-0 bg-black bg-opacity-20 group-hover:bg-opacity-10 transition-all flex items-center justify-center">
+            {/* <span className="text-white opacity-0 group-hover:opacity-100 border border-white px-4 py-2 rounded-full backdrop-blur-sm transition-opacity duration-300">
+              🔍 Xem phóng to
+            </span> */}
+          </div>
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 -mt-20 relative z-10">
@@ -188,7 +232,7 @@ const EventDetailPage: React.FC = () => {
               </h1>
               <div className="flex flex-wrap gap-6 text-gray-600 mb-6 text-sm md:text-base">
                 <div className="flex items-center">
-                  <FaClock className="mr-2 text-indigo-600" />
+                  <span className="mr-2 text-indigo-600"><FaClock /></span>
                   <span>
                     {eventDate.toLocaleTimeString("vi-VN", {
                       hour: "2-digit",
@@ -197,7 +241,7 @@ const EventDetailPage: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex items-center">
-                  <FaCalendarAlt className="mr-2 text-indigo-600" />
+                  <span className="mr-2 text-indigo-600"><FaCalendarAlt /></span>
                   <span>
                     {eventDate.toLocaleDateString("vi-VN", {
                       weekday: "long",
@@ -208,7 +252,7 @@ const EventDetailPage: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex items-center">
-                  <FaMapMarkerAlt className="mr-2 text-indigo-600 flex-shrink-0" />
+                  <span className="mr-2 text-indigo-600 flex-shrink-0"><FaMapMarkerAlt /></span>
                   <span>{event.fullLocation || "Đang cập nhật"}</span>
                 </div>
               </div>
@@ -230,44 +274,38 @@ const EventDetailPage: React.FC = () => {
                 </p>
               </div>
 
-              {/* GALLERY ẢNH */}
+              {/* GALLERY ẢNH (CLICK ĐỂ MỞ LIGHTBOX) */}
               {event.gallery && event.gallery.length > 0 && (
                 <div className="mt-8 border-t pt-6">
                   <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2 uppercase">
-                    <FaImages className="text-indigo-600" /> Sơ đồ / Thư viện
-                    ảnh
+                    <span className="text-indigo-600"><FaImages /></span> Sơ đồ / Thư viện ảnh
                   </h3>
-                  {/* 1. ĐỔI GRID: Chỉ để 1 cột duy nhất (grid-cols-1) để ảnh to nhất có thể */}
-                  <div className="grid grid-cols-1 gap-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {event.gallery.map((imgUrl: string, index: number) => (
                       <div
                         key={index}
-                        className="rounded-xl overflow-hidden shadow-lg border border-gray-200"
+                        className="rounded-xl overflow-hidden shadow-lg border border-gray-200 cursor-pointer relative group"
+                        // Gắn sự kiện click mở Lightbox
+                        onClick={() => openLightbox(index)}
                       >
-                        {/* 
-             2. LOGIC ẢNH: 
-             - w-full: Chiếm hết chiều ngang khung chứa.
-             - h-auto: Chiều cao tự động (không cố định) để giữ đúng tỷ lệ ảnh, không bị méo.
-             - Bỏ 'object-cover' để không bị cắt mất chi tiết ghế.
-          */}
                         <img
                           src={imgUrl}
                           alt={`Sơ đồ ${index}`}
-                          className="w-full h-auto block"
+                          className="w-full h-64 object-cover transition-transform duration-500 group-hover:scale-105"
                           onError={(e) =>
                             (e.currentTarget.style.display = "none")
                           }
-                          // Thêm tính năng click vào để xem ảnh gốc (tab mới) nếu ảnh quá dài
-                          onClick={() => window.open(imgUrl, "_blank")}
-                          style={{ cursor: "zoom-in" }}
-                          title="Nhấn để xem ảnh phóng to"
                         />
+                        {/* <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all flex items-center justify-center">
+                          <span className="text-white opacity-0 group-hover:opacity-100 text-3xl drop-shadow-md">🔍</span>
+                        </div> */}
                       </div>
                     ))}
                   </div>
                 </div>
               )}
             </div>
+
             {/* CỘT PHẢI: SIDEBAR */}
             <div className="bg-gray-50 p-6 md:p-8 md:w-1/3 border-l border-gray-100 flex flex-col">
               {/* 1. LIÊN HỆ & MẠNG XÃ HỘI */}
@@ -276,14 +314,14 @@ const EventDetailPage: React.FC = () => {
                   Liên hệ ngay
                 </h3>
                 <div className="flex items-center gap-4">
-                  {/* ... (Giữ nguyên icon Zalo/MXH) ... */}
                   <a
                     href="https://zalo.me/0963310889"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center rounded-full hover:scale-110 transition"
                   >
-                    <img src="/zalo.webp" alt="Zalo" className="w-6 h-6" />
+                    <img src={zaloLogo}
+                      alt="Zalo" className="w-6 h-6" />
                   </a>
                 </div>
               </div>
@@ -294,26 +332,23 @@ const EventDetailPage: React.FC = () => {
                   Liên hệ bộ phận chăm sóc khách hàng
                 </p>
                 <p className="text-sm text-gray-800 font-medium mb-1">
-                  ✉ Email: hotro@momangshow.vn
+                  ✉ Email: momangshow@gmail.com
                 </p>
                 <p className="text-sm text-gray-800 font-medium">
                   📞 Hotline:{" "}
-                  <span className="text-orange-600 font-bold">1900 1234</span>
+                  <span className="text-orange-600 font-bold">0929009999</span>
                 </p>
               </div>
 
               {/* 3. BẢN ĐỒ */}
               <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm mb-6">
                 <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2 uppercase">
-                  <FaMapMarkerAlt className="text-orange-500" size={18} />
+                  <span className="text-orange-500"><FaMapMarkerAlt size={18} /></span>
                   Bản đồ địa điểm
                 </h3>
 
                 <div className="w-full h-48 bg-gray-100 rounded-lg overflow-hidden relative border border-gray-100">
-                  {/* ... (Giữ nguyên logic iframe bản đồ) ... */}
-                  {event.address?.latitude &&
-                  event.address?.longitude &&
-                  event.address.latitude !== 0 ? (
+                  {event.address?.latitude && event.address?.longitude && event.address.latitude !== 0 ? (
                     <iframe
                       title="Event Location"
                       width="100%"
@@ -322,7 +357,7 @@ const EventDetailPage: React.FC = () => {
                       scrolling="no"
                       src={`https://maps.google.com/maps?q=${event.address.latitude},${event.address.longitude}&hl=vi&z=15&output=embed`}
                       className="w-full h-full"
-                    ></iframe>
+                    />
                   ) : event.fullLocation ? (
                     <iframe
                       title="Event Address"
@@ -334,39 +369,46 @@ const EventDetailPage: React.FC = () => {
                         event.fullLocation
                       )}&hl=vi&z=14&output=embed`}
                       className="w-full h-full"
-                    ></iframe>
+                    />
                   ) : (
                     <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                      <FaMapMarkerAlt size={30} className="mb-2 opacity-50" />
+                      <span className="mb-2 opacity-50"><FaMapMarkerAlt size={30} /></span>
                       <span className="text-xs">Chưa có dữ liệu bản đồ</span>
                     </div>
                   )}
-                </div>
 
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${event.address?.latitude},${event.address?.longitude}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-xs text-indigo-600 mt-2 block hover:underline truncate"
-                >
-                  📍 {event.fullLocation || "Xem trên Google Maps"}
-                </a>
+                  {(event.address?.latitude && event.address?.longitude) ||
+                    event.fullLocation ? (
+                    <a
+                      href={
+                        event.address?.latitude && event.address?.longitude
+                          ? `https://www.google.com/maps/dir/?api=1&destination=${event.address.latitude},${event.address.longitude}`
+                          : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+                            event.fullLocation
+                          )}`
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="absolute bottom-2 right-2 bg-white px-3 py-1.5 rounded-md shadow-md text-sm font-medium text-blue-600 hover:bg-gray-100"
+                    >
+                      🚗 Chỉ đường
+                    </a>
+                  ) : null}
+                </div>
               </div>
 
-              {/* 4. NÚT MUA VÉ (Đã chuyển lên đây và bỏ thẻ div mt-auto) */}
+              {/* 4. NÚT MUA VÉ */}
               <button
                 onClick={() => setIsBookingModalOpen(true)}
-                className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 rounded-lg shadow-lg transform transition hover:scale-105 flex justify-center items-center text-lg"
+                className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 rounded-lg shadow-lg transform transition hover:scale-105 flex justify-center items-center text-lg "
               >
                 Mua vé ngay
               </button>
-
-              {/* Mình thêm class 'animate-pulse' nhẹ để nút gây chú ý hơn */}
             </div>
           </div>
         </div>
 
-        {/* --- KHU VỰC SỰ KIỆN LIÊN QUAN (INLINE) --- */}
+        {/* --- KHU VỰC SỰ KIỆN LIÊN QUAN --- */}
         {relatedEvents.length > 0 && (
           <div className="bg-gray-100 py-12 mt-12">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -380,28 +422,26 @@ const EventDetailPage: React.FC = () => {
                     onClick={() => handleRelatedClick(item.id)}
                     className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow cursor-pointer group"
                   >
-                    {/* Ảnh Thumbnail */}
                     <div className="h-48 bg-gray-300 relative overflow-hidden">
                       <img
                         src={item.image}
                         alt={item.title}
                         className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500"
                         onError={(e) =>
-                          (e.currentTarget.src =
-                            "https://placehold.co/600x400?text=No+Image")
+                        (e.currentTarget.src =
+                          "https://placehold.co/600x400?text=No+Image")
                         }
                       />
                       <div className="absolute top-2 right-2 bg-white px-2 py-1 rounded text-xs font-bold text-indigo-600 shadow">
                         Sắp diễn ra
                       </div>
                     </div>
-                    {/* Nội dung text */}
                     <div className="p-4">
                       <h3 className="font-bold text-lg mb-2 text-gray-800 group-hover:text-orange-500 transition-colors line-clamp-2 min-h-[56px]">
                         {item.title}
                       </h3>
                       <div className="flex items-center text-sm text-gray-500 mb-2">
-                        <FaCalendarAlt className="mr-2" />
+                        <span className="mr-2"><FaCalendarAlt /></span>
                         {new Date(item.date).toLocaleDateString("vi-VN")}
                       </div>
                       <div className="flex justify-between items-center border-t pt-3">
@@ -423,7 +463,37 @@ const EventDetailPage: React.FC = () => {
 
       <Footer />
 
-      {/* MODAL ĐẶT VÉ (Đã cập nhật logic available) */}
+      {/* --- LIGHTBOX MODAL (ĐOẠN CODE MỚI THÊM VÀO) --- */}
+      {isGalleryOpen && (
+        <div className="fixed inset-0 z-[9999] bg-black bg-opacity-95 flex items-center justify-center animate-in fade-in duration-200">
+          {/* Close Button */}
+          <button onClick={closeLightbox} className="absolute top-5 right-5 text-white/70 hover:text-white p-2 rounded-full hover:bg-white/10 transition z-50">
+            <FaTimes size={30} />
+          </button>
+
+          {/* Navigation Buttons */}
+          <button onClick={prevPhoto} className="absolute left-4 md:left-8 text-white/70 hover:text-white p-3 rounded-full hover:bg-white/10 transition z-50">
+            <FaChevronLeft size={40} />
+          </button>
+          <button onClick={nextPhoto} className="absolute right-4 md:right-8 text-white/70 hover:text-white p-3 rounded-full hover:bg-white/10 transition z-50">
+            <FaChevronRight size={40} />
+          </button>
+
+          {/* Image */}
+          <div className="relative max-w-5xl max-h-[85vh] w-full flex justify-center p-4">
+            <img
+              src={event.gallery[photoIndex]}
+              alt="Gallery Full"
+              className="max-w-full max-h-[85vh] object-contain rounded shadow-2xl"
+            />
+            <div className="absolute bottom-[-40px] text-white font-medium text-lg tracking-wider">
+              {photoIndex + 1} / {event.gallery.length}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL ĐẶT VÉ */}
       {event && (
         <BookingModal
           isOpen={isBookingModalOpen}
@@ -433,78 +503,17 @@ const EventDetailPage: React.FC = () => {
             title: event.name,
             ticketTiers:
               event.ticketTypes?.map((t: any) => ({
-                name: t.code, // Mã vé (VIP, STD)
-                displayName: t.name, // Tên hiển thị
+                name: t.code,
+                displayName: t.name,
                 price: t.price,
-                // Logic check số lượng vé còn lại:
-                // Backend có thể trả về 'availableQuantity', 'realAvailable' hoặc 'totalQuantity'
-                // Dùng toán tử ?? để ưu tiên lấy giá trị tồn tại đầu tiên
-                available:
-                  t.realAvailable ??
-                  t.availableQuantity ??
-                  t.totalQuantity ??
-                  0,
+                available: t.realAvailable ?? t.availableQuantity ?? t.totalQuantity ?? 0,
               })) || [],
           }}
         />
       )}
 
-      {/* 👇 FLOAT BUTTON ZALO 👇 */}
-      <a
-        href="https://zalo.me/0963310889" // ⚠️ Thay số Zalo của bạn vào đây
-        target="_blank"
-        rel="noopener noreferrer"
-        className="fixed bottom-8 right-8 z-50 group"
-        title="Chat Zalo ngay"
-      >
-        <div className="relative flex items-center justify-center w-14 h-14 bg-blue-600 rounded-full shadow-2xl hover:scale-110 transition-transform duration-300 ring-4 ring-white">
-          {/* Hiệu ứng sóng (Ping) */}
-          <span className="absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75 animate-ping"></span>
-
-          {/* Icon Zalo */}
-          <img
-            src="/zalo.webp"
-            alt="Zalo"
-            className="w-8 h-8 object-contain relative z-10"
-          />
-
-          {/* Tooltip nhỏ hiện khi hover */}
-          <span className="absolute right-full mr-3 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-            Tư vấn ngay
-          </span>
-        </div>
-      </a>
-      <a
-        href="tel:0929009999" // ⚠️ Thay số ĐIỆN THOẠI nghe gọi vào đây
-        className="fixed bottom-28 right-8 z-50 group"
-        title="Gọi ngay"
-      >
-        <div className="relative flex items-center justify-center w-14 h-14 bg-green-500 rounded-full shadow-2xl hover:scale-110 transition-transform duration-300 ring-4 ring-white">
-          {/* Hiệu ứng sóng (Ping) */}
-          <span className="absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75 animate-ping"></span>
-
-          {/* Icon Phone SVG */}
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={2}
-            stroke="currentColor"
-            className="w-7 h-7 text-white relative z-10 animate-bounce-slow"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"
-            />
-          </svg>
-
-          {/* Tooltip */}
-          <span className="absolute right-full mr-3 bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-            Gọi ngay
-          </span>
-        </div>
-      </a>
+      {/* FLOAT BUTTON ZALO */}
+      <FloatButton />
     </div>
   );
 };

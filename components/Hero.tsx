@@ -61,7 +61,7 @@ const Hero: React.FC = () => {
                 disableOnInteraction: false,
             }}
             pagination={{ clickable: true }}
-            navigation={true}
+            // navigation={true}
             loop={banners.length > 1} 
             className="w-full h-[250px] md:h-[400px] lg:h-[500px] rounded-lg shadow-lg"
         >

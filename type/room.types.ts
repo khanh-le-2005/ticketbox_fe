@@ -21,20 +21,41 @@ export interface ApiResponse<T> {
 
 // Response cho Cách 1: Check Realtime
 export interface AvailabilityResponse {
-    hotelId: string;
-    checkIn: string;
-    checkOut: string;
-    remainingRooms: number;
-    isAvailable: boolean;
+  hotelId: string;
+  checkIn: string;
+  checkOut: string;
+  remainingRooms: number;
+  isAvailable: boolean;
 }
 
 // Item cho Cách 2: Calendar View
 export interface CalendarDayItem {
-    date: string;       // YYYY-MM-DD
-    availableRooms: number;
-    price: number;
+  date: string;       // YYYY-MM-DD
+  availableRooms: number;
+  price: number;
 }
 
 export interface CalendarResponse {
-    data: CalendarDayItem[];
+  data: CalendarDayItem[];
+}
+
+export interface CreateHotelBookingRequest {
+  hotelId: string;
+  roomTypeCode: string;
+  checkInDate: string;
+  checkOutDate: string;
+  quantity: number;
+  numberOfGuests: number;
+  customerName: string;
+  customerEmail: string | null;  // ⚠️ Update: Nullable
+  customerPhone: string;
+  otp: string;
+  notificationChannel?: "EMAIL" | "ZALO"; // ⚠️ Update: New field
+}
+
+export interface HotelPaymentResponse {
+  user_id: string;
+  payment_content: string;
+  amount: number;
+  qr_base64: string;
 }

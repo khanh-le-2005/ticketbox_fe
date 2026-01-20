@@ -1,22 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Article } from '@/type/indext';
 
 // --- 1. ĐỊNH NGHĨA INTERFACE THEO JSON API TRẢ VỀ ---
-export interface Article {
-    id: string;
-    title: string;
-    shortDescription: string;
-    content: string;
-    tags: string | null;
-    thumbUrl: string;
-    menu: string | null;
-    seoTitle: string;
-    seoDescription: string;
-    status: 'DRAFT' | 'PUBLISHED' | 'PENDING'; // Quan trọng để lọc
-    createdDate: string;
-    publishedDate: string;
-}
+// export interface Article {
+//     id: string;
+//     title: string;
+//     shortDescription: string;
+//     content: string;
+//     tags: string | null;
+//     thumbUrl: string;
+//     menu: string | null;
+//     seoTitle: string;
+//     seoDescription: string;
+//     status: 'DRAFT' | 'PUBLISHED' | 'PENDING'; // Quan trọng để lọc
+//     createdDate: string;
+//     publishedDate: string;
+// }
 
 // URL API trực tiếp
 const API_URL = 'https://api.momangshow.vn/api/admin/news';

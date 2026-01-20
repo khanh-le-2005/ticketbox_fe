@@ -4,9 +4,9 @@ export interface ApiResponse<T> { success: boolean; message: string; data: T; }
 
 const VerificationApi = {
   // Gửi OTP
-  requestOtp: async (email: string): Promise<ApiResponse<any>> => {
+  requestOtp: async (target: string, channel: 'EMAIL' | 'ZALO' = 'EMAIL', type: string = 'SHOW'): Promise<ApiResponse<any>> => {
     return axiosClient.post('/verification/request-otp', null, {
-        params: { email }
+      params: { target, channel, type }
     });
   },
 
