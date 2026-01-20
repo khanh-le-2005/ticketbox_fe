@@ -90,10 +90,13 @@ const EventCard: React.FC<EventCardProps> = ({ event, className = '', imageClass
         </div>
 
         {/* Giá vé (Đẩy xuống đáy) */}
-        <div className="mt-auto flex justify-end items-center">
-          <div className="font-bold text-orange-600 text-sm flex items-center bg-orange-50 px-2 py-1 rounded">
-            <FaTicketAlt className="mr-1.5 text-xs" />
+        <div className="mt-auto flex justify-between items-center bg-gray-50 rounded-lg p-1">
+          <div className="font-bold text-orange-600 text-[13px] flex items-center px-2 py-1">
+            <FaTicketAlt className="mr-1.5 text-xs opacity-70" />
             {event.formattedPrice || event.price}
+          </div>
+          <div className="bg-orange-500 text-white text-[11px] font-bold px-3 py-1.5 rounded-md shadow-sm group-hover:bg-orange-600 transition-colors">
+            Đặt chỗ
           </div>
         </div>
       </div>

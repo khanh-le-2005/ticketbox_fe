@@ -542,14 +542,14 @@ const ContactInfoModal: React.FC<Props> = ({ isOpen, onClose, onConfirm }) => {
         // 🔥 FIX QUAN TRỌNG THEO POSTMAN 🔥
         const finalData = {
             ...formData,
-            
+
             // 1. Xử lý Email: Nếu chọn Zalo mà không nhập -> Gửi chuỗi rỗng "" (GIỐNG POSTMAN)
             // Tuyệt đối không gửi null hoặc undefined vì Backend @NotBlank sẽ chặn
             email: (otpMethod === 'zalo' && !formData.email) ? "" : formData.email,
 
             // 2. Thêm key 'channel' (GIỐNG POSTMAN)
             channel: otpMethod === 'email' ? 'EMAIL' : 'ZALO',
-            
+
             // Giữ lại notificationChannel để tương thích code cũ (nếu cần)
             notificationChannel: otpMethod === 'email' ? 'EMAIL' : 'ZALO'
         };
@@ -617,23 +617,25 @@ const ContactInfoModal: React.FC<Props> = ({ isOpen, onClose, onConfirm }) => {
                                 </div>
                             </div>
 
-                            <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Email {otpMethod === 'email' ? <span className="text-red-500">*</span> : <span className="text-gray-400 font-normal">(Tuỳ chọn)</span>}
-                                </label>
-                                <div className="relative">
-                                    <FaEnvelope className={`absolute left-3 top-3 ${otpMethod === 'email' ? 'text-gray-400' : 'text-gray-300'}`} />
-                                    <input 
-                                        type="email" 
-                                        name="email" 
-                                        value={formData.email} 
-                                        onChange={handleChange} 
-                                        className={`w-full pl-10 pr-3 py-2.5 border rounded-lg outline-none transition-all ${otpMethod === 'email' ? 'focus:ring-2 focus:ring-indigo-500 border-gray-300' : 'focus:ring-1 focus:ring-gray-300 border-gray-200 bg-gray-50'}`} 
-                                        placeholder={otpMethod === 'email' ? "email@example.com" : "Nhập email (nếu có)"} 
-                                        required={otpMethod === 'email'} 
-                                    />
+                            {otpMethod === 'email' && (
+                                <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Email <span className="text-red-500">*</span>
+                                    </label>
+                                    <div className="relative">
+                                        <FaEnvelope className="absolute left-3 top-3 text-gray-400" />
+                                        <input
+                                            type="email"
+                                            name="email"
+                                            value={formData.email}
+                                            onChange={handleChange}
+                                            className="w-full pl-10 pr-3 py-2.5 border rounded-lg outline-none transition-all focus:ring-2 focus:ring-indigo-500 border-gray-300"
+                                            placeholder="email@example.com"
+                                            required={otpMethod === 'email'}
+                                        />
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
                             <button type="submit" disabled={loading} className="w-full bg-orange-600 text-white py-3 rounded-xl font-bold hover:bg-orange-700 transition-all shadow-lg mt-4 flex justify-center items-center gap-2 disabled:bg-gray-400">
                                 {loading ? <><FaSpinner className="animate-spin" /> Đang gửi OTP...</> : "Tiếp tục & Gửi OTP"}

@@ -4,7 +4,6 @@ import roomApi from "@/api/room_api";
 import zaloLogo from '../assets/zalo.webp';
 import { ContactData, HotelContactModalProps } from '@/type/contact.type';
 
-
 const HotelContactModal: React.FC<HotelContactModalProps> = ({ isOpen, onClose, onConfirm }) => {
     const [step, setStep] = useState<1 | 2>(1);
     const [loading, setLoading] = useState(false);
@@ -20,7 +19,7 @@ const HotelContactModal: React.FC<HotelContactModalProps> = ({ isOpen, onClose, 
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    // --- XỬ LÝ GỬI OTP (THEO LOGIC MỚI) ---
+    // --- XỬ LÝ GỬI OTP ---
     const handleSendOtp = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -56,44 +55,25 @@ const HotelContactModal: React.FC<HotelContactModalProps> = ({ isOpen, onClose, 
         }
     };
 
-    // const handleSubmitConfirm = () => {
-    //     if (!formData.otp || formData.otp.length < 6) {
-    //         alert("Vui lòng nhập mã OTP hợp lệ (6 số)");
-    //         return;
-    //     }
-
-    //     // 4. Trả về dữ liệu kèm notificationChannel chuẩn API
-    //     const finalData = {
-    //         ...formData,
-    //         // Nếu chọn Zalo mà không nhập email thì gửi null (theo tài liệu)
-    //         email: (otpMethod === 'zalo' && !formData.email) ? null : formData.email,
-    //         notificationChannel: otpMethod === 'email' ? 'EMAIL' : 'ZALO'
-    //     };
-
-    //     // Ép kiểu hoặc truyền data đã xử lý về parent
-    //     onConfirm(finalData as any);
-    // };
-
+    // --- XỬ LÝ XÁC NHẬN ---
     const handleSubmitConfirm = () => {
         if (!formData.otp || formData.otp.length < 6) {
             alert("Vui lòng nhập mã OTP hợp lệ (6 số)");
             return;
         }
 
-        // 🔥 FIX QUAN TRỌNG THEO POSTMAN (GIỐNG ContactInfoModal) 🔥
+        // 4. Trả về dữ liệu kèm notificationChannel chuẩn API
         const finalData = {
             ...formData,
+            // LOGIC QUAN TRỌNG:
+            // Nếu chọn Zalo mà không nhập email -> Gửi null (để Backend biết là không có email)
+            // Nếu gửi chuỗi rỗng "" thì Backend @NotBlank sẽ báo lỗi.
+            email: (otpMethod === 'zalo' && !formData.email) ? null : formData.email,
 
-            // 1. Xử lý Email: Nếu chọn Zalo mà không nhập -> Gửi chuỗi rỗng "" (GIỐNG POSTMAN)
-            // Tuyệt đối không gửi null hoặc undefined vì Backend @NotBlank sẽ chặn
-            email: (otpMethod === 'zalo' && !formData.email) ? "" : formData.email,
-
-            // 2. Thêm key 'channel' & 'notificationChannel' (GIỐNG POSTMAN)
-            channel: otpMethod === 'email' ? 'EMAIL' : 'ZALO',
             notificationChannel: otpMethod === 'email' ? 'EMAIL' : 'ZALO'
         };
 
-        // console.log("🚀 [DEBUG] Dữ liệu gửi lên API (Final Data):", finalData);
+        // Ép kiểu hoặc truyền data đã xử lý về parent
         onConfirm(finalData as any);
     };
 
@@ -169,30 +149,28 @@ const HotelContactModal: React.FC<HotelContactModalProps> = ({ isOpen, onClose, 
                                 </div>
                             </div>
 
-                            {/* Input Email (Xử lý UI dựa trên otpMethod) */}
-                            <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Email
-                                    {otpMethod === 'email'
-                                        ? <span className="text-red-500 ml-1">* (Nhận OTP & Vé)</span>
-                                        : <span className="text-gray-400 font-normal ml-1">(Tuỳ chọn)</span>}
-                                </label>
-                                <div className="relative">
-                                    <FaEnvelope className={`absolute left-3 top-3 ${otpMethod === 'email' ? 'text-gray-400' : 'text-gray-300'}`} />
-                                    <input
-                                        type="email"
-                                        name="email"
-                                        value={formData.email}
-                                        onChange={handleChange}
-                                        className={`w-full pl-10 pr-3 py-2.5 border rounded-lg outline-none transition-all ${otpMethod === 'email' ? 'focus:ring-2 focus:ring-orange-500 border-gray-300' : 'focus:ring-1 focus:ring-gray-300 border-gray-200 bg-gray-50'}`}
-                                        placeholder={otpMethod === 'email' ? "email@example.com" : "Nhập email (nếu có)"}
-                                        required={otpMethod === 'email'} // Chỉ bắt buộc khi chọn Email
-                                    />
+                            {otpMethod === 'email' && (
+                                <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Email khách hàng <span className="text-red-500">*</span>
+                                    </label>
+                                    <div className="relative">
+                                        <FaEnvelope className="absolute left-3 top-3 text-gray-400" />
+                                        <input
+                                            type="email"
+                                            name="email"
+                                            value={formData.email}
+                                            onChange={handleChange}
+                                            className="w-full pl-10 pr-3 py-2.5 border rounded-lg outline-none transition-all focus:ring-2 focus:ring-orange-500 border-gray-300"
+                                            placeholder="email@example.com"
+                                            required={otpMethod === 'email'}
+                                        />
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
                             <button type="submit" disabled={loading} className="w-full bg-orange-600 text-white py-3 rounded-xl font-bold hover:bg-orange-700 transition-all shadow-lg mt-4 flex justify-center items-center gap-2 disabled:bg-gray-400">
-                                {loading ? <><FaSpinner className="animate-spin" /> Đang gửi...</> : "Gửi OTP Xác thực"}
+                                {loading ? <><FaSpinner className="animate-spin" /> Đang gửi OTP...</> : "Gửi OTP Xác thực"}
                             </button>
                         </form>
                     )}
