@@ -1,11 +1,11 @@
 import React from 'react';
-import { FaCheckCircle, FaTimes, FaTicketAlt, FaCalendarCheck } from 'react-icons/fa';
+import { FaCheckCircle, FaTicketAlt, FaCalendarCheck } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 
 interface EventReceiptModalProps {
     isOpen: boolean;
     onClose: () => void;
-    details: any;
+    details: any; // Dữ liệu trả về từ API createBooking
 }
 
 const EventReceiptModal: React.FC<EventReceiptModalProps> = ({ isOpen, onClose, details }) => {
@@ -13,8 +13,14 @@ const EventReceiptModal: React.FC<EventReceiptModalProps> = ({ isOpen, onClose, 
 
     if (!isOpen) return null;
 
-    // 👇 SỬA ĐOẠN NÀY: Ưu tiên lấy các trường ID có thể có
-    const finalBookingId = details?.bookingId || details?.user_id || details?.id || 'UNKNOWN';
+    // 1️⃣ LOGIC LẤY ID: Ưu tiên mã đơn hàng (orderCode) -> bookingId -> id -> Bỏ qua user_id
+    const finalBookingId = details?.orderCode || details?.bookingId || details?.id || 'UNKNOWN';
+
+    // 2️⃣ LOGIC LẤY GIÁ: Check cả amount và totalPrice
+    const finalAmount = details?.amount || details?.totalPrice || 0;
+
+    // 3️⃣ LOGIC CHECK KÊNH GỬI: Kiểm tra kỹ các trường có thể đánh dấu là Zalo
+    const isZalo = details?.channel === 'ZALO' || details?.notificationChannel === 'ZALO';
 
     const handleFinish = () => {
         onClose();
@@ -31,7 +37,11 @@ const EventReceiptModal: React.FC<EventReceiptModalProps> = ({ isOpen, onClose, 
                         <FaCheckCircle className="text-green-600 text-5xl" />
                     </div>
                     <h3 className="text-2xl font-bold text-white uppercase tracking-wider">THANH TOÁN THÀNH CÔNG!</h3>
-                    <p className="text-green-100 mt-2">Vé điện tử đã được gửi tới email của bạn</p>
+                    
+                    {/* Hiển thị đúng kênh gửi */}
+                    <p className="text-green-100 mt-2 font-medium">
+                        Vé điện tử đã được gửi tới <span className="font-bold underline">{isZalo ? 'Zalo' : 'Email'}</span> của bạn
+                    </p>
                 </div>
 
                 <div className="p-8 space-y-6">
@@ -39,25 +49,27 @@ const EventReceiptModal: React.FC<EventReceiptModalProps> = ({ isOpen, onClose, 
                     <div className="border-b border-dashed border-gray-300 pb-6">
                         <div className="flex justify-between items-center mb-3">
                             <span className="text-gray-500">Mã đơn hàng:</span>
-                            {/* 👇 HIỂN THỊ ID ĐÃ XỬ LÝ */}
+                            {/* Cắt ngắn ID nếu nó quá dài (trường hợp là UUID) */}
                             <span className="font-mono font-bold text-lg text-gray-800 bg-gray-100 px-3 py-1 rounded">
-                                #{finalBookingId.slice(-8).toUpperCase()}
+                                #{finalBookingId.length > 10 ? finalBookingId.slice(-8).toUpperCase() : finalBookingId}
                             </span>
                         </div>
                         <div className="flex justify-between items-center">
                             <span className="text-gray-500">Tổng thanh toán:</span>
                             <span className="font-bold text-2xl text-orange-600">
-                                {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(details?.amount || 0)}
+                                {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(finalAmount)}
                             </span>
                         </div>
                     </div>
 
+                    {/* Hướng dẫn */}
                     <div className="bg-indigo-50 p-4 rounded-lg flex items-start gap-3 border border-indigo-100">
                         <FaTicketAlt className="text-indigo-600 mt-1 flex-shrink-0 text-xl" />
                         <div>
                             <h4 className="font-bold text-indigo-900 text-sm uppercase">HƯỚNG DẪN SỬ DỤNG</h4>
                             <p className="text-sm text-indigo-700 mt-1 leading-relaxed">
-                                Vui lòng kiểm tra Email để nhận mã QR vé. Khi đến sự kiện, hãy xuất trình mã QR này tại cổng soát vé.
+                                Vui lòng kiểm tra <b>{isZalo ? 'tin nhắn Zalo (ZNS)' : 'hộp thư Email'}</b> để nhận vé và mã QR. 
+                                Khi đến sự kiện, hãy xuất trình mã QR này tại cổng soát vé.
                             </p>
                         </div>
                     </div>

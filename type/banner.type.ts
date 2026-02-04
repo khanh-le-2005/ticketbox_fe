@@ -7,5 +7,6 @@ export interface Banner {
   menu?: string; // BỔ SUNG: Trường menu
   displayOrder?: number;
   isActive: boolean;
+  active: boolean;
 }
 

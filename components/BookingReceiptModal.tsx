@@ -1,6 +1,7 @@
 import React from "react";
 import { BookingReceiptModalProps } from "../types";
 import { FaTimes, FaCheckCircle, FaPrint } from "react-icons/fa";
+import QRCode from "qrcode";
 
 const BookingReceiptModal: React.FC<BookingReceiptModalProps> = ({
   isOpen,
@@ -13,18 +14,36 @@ const BookingReceiptModal: React.FC<BookingReceiptModalProps> = ({
     window.print();
   };
 
-  const qrData = encodeURIComponent(
-    `Booking ID: ${details.bookingId}\n` +
-    `Hotel: ${details.hotel.name}\n` +
-    `Check-in: ${new Date(details.checkInDate).toLocaleDateString(
-      "vi-VN"
-    )}\n` +
-    `Check-out: ${new Date(details.checkOutDate).toLocaleDateString(
-      "vi-VN"
-    )}\n` +
-    `Guests: ${details.guests}`
-  );
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${qrData}&margin=10`;
+  const qrText = React.useMemo(() => {
+    return (
+      `Booking ID: ${details.bookingId}\n` +
+      `Hotel: ${details.hotel.name}\n` +
+      `Check-in: ${new Date(details.checkInDate).toLocaleDateString("vi-VN")}\n` +
+      `Check-out: ${new Date(details.checkOutDate).toLocaleDateString("vi-VN")}\n` +
+      `Guests: ${details.guests}`
+    );
+  }, [details]);
+
+  const [qrCodeUrl, setQrCodeUrl] = React.useState<string>("");
+
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const url = await QRCode.toDataURL(qrText, {
+          width: 120,
+          margin: 1,
+          errorCorrectionLevel: "M",
+        });
+        if (!cancelled) setQrCodeUrl(url);
+      } catch {
+        if (!cancelled) setQrCodeUrl("");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [qrText]);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 z-[1000] flex justify-center items-center p-4 print:bg-gray-100 print:block print:p-8 print-container py-10">
@@ -50,11 +69,17 @@ const BookingReceiptModal: React.FC<BookingReceiptModalProps> = ({
               </p>
             </div>
             <div className="flex-shrink-0">
-              <img
-                src={qrCodeUrl}
-                alt="Booking QR Code"
-                className="w-28 h-28 border p-1 bg-white"
-              />
+              {qrCodeUrl ? (
+                <img
+                  src={qrCodeUrl}
+                  alt="Booking QR Code"
+                  className="w-28 h-28 border p-1 bg-white"
+                />
+              ) : (
+                <div className="w-28 h-28 border p-1 bg-white flex items-center justify-center text-[10px] text-gray-400">
+                  Đang tạo QR...
+                </div>
+              )}
             </div>
           </div>
           <div className="mt-4 flex items-center justify-center sm:justify-start space-x-2 text-green-600">

@@ -1,49 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { FaTimes, FaHotel, FaCalendarCheck, FaBed, FaUserFriends, FaArrowRight, FaExclamationCircle, FaCheckCircle } from 'react-icons/fa';
-import roomApi, { CreateHotelBookingRequest } from '../api/room_api';
+import roomApi from '../api/room_api';
+import type { CreateHotelBookingRequest } from '@/type/room.types';
 import axiosClient from '../api/axiosClient';
 import { useNavigate } from 'react-router-dom';
 import PaymentStepModal from './PaymentStepModal';
 import HotelContactModal from '../components/HotelContactModal';
 import { ContactData } from '@/type/contact.type';
 import { toast } from 'react-toastify';
-
-export enum HotelBookingStep {
-    DATE_SELECTION,
-    PAYMENT_QR,
-    SUCCESS_RECEIPT
-}
-
-export interface RoomPriceConfig {
-    priceMonToThu: number;
-    priceFriday: number;
-    priceSaturday: number;
-    priceSunday: number;
-    surchargeSunToThu: number;
-    surchargeFriSat: number;
-}
-
-interface HotelBookingModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    hotelId: string;
-    roomTypeCode: string;
-    priceConfig: RoomPriceConfig;
-    standardCapacity: number;
-    maxCapacity: number;
-    onSuccess?: () => void;
-}
+import BookingSuccessModal from './BookingSuccessModal';
+import { HotelBookingStep, HotelBookingModalProps } from '@/type/hotel.type';
 
 const HotelBookingModal: React.FC<HotelBookingModalProps> = ({
-    isOpen, onClose, hotelId, roomTypeCode, priceConfig, standardCapacity, maxCapacity, onSuccess
+    isOpen, onClose, hotelId, roomTypeCode, priceConfig, standardCapacity, maxCapacity, onSuccess, initialCheckIn, initialCheckOut
 }) => {
     const navigate = useNavigate();
+
+    // --- HELPER FUNCTIONS FOR DATE (FIX TIMEZONE) ---
+    const getLocalDateString = (date: Date) => {
+        const offset = date.getTimezoneOffset();
+        const localDate = new Date(date.getTime() - (offset * 60 * 1000));
+        return localDate.toISOString().split('T')[0];
+    };
+
+    const getTodayDate = () => getLocalDateString(new Date());
+
+    const getTomorrowDate = () => {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        return getLocalDateString(tomorrow);
+    };
 
     // --- STATE ---
     const [currentStep, setCurrentStep] = useState(HotelBookingStep.DATE_SELECTION);
     const [loading, setLoading] = useState(false);
     const [bookingResult, setBookingResult] = useState<any>(null);
     const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+    const [refreshKey, setRefreshKey] = useState(0);
 
     const [availability, setAvailability] = useState<{
         isAvailable: boolean;
@@ -58,12 +51,40 @@ const HotelBookingModal: React.FC<HotelBookingModalProps> = ({
         quantity: 1,
     });
 
-    // --- VARIABLES (Tính toán ngay trong render để dùng chung) ---
+    // --- INITIALIZATION ---
+    useEffect(() => {
+        if (isOpen) {
+            const today = getTodayDate();
+            const tomorrow = getTomorrowDate();
+
+            // Nếu initial từ props <= today, ép về tomorrow theo luật Backend
+            let finalCheckIn = initialCheckIn || tomorrow;
+            if (finalCheckIn <= today) finalCheckIn = tomorrow;
+
+            // Tính checkOut tối thiểu (CheckIn + 1)
+            const checkInObj = new Date(finalCheckIn);
+            const minOutObj = new Date(checkInObj);
+            minOutObj.setDate(minOutObj.getDate() + 1);
+            const minCheckOut = getLocalDateString(minOutObj);
+
+            let finalCheckOut = initialCheckOut || minCheckOut;
+            if (finalCheckOut <= finalCheckIn) finalCheckOut = minCheckOut;
+
+            setBookingConfig(prev => ({
+                ...prev,
+                checkInDate: finalCheckIn,
+                checkOutDate: finalCheckOut,
+            }));
+            // Đảm bảo reset về step đầu khi mở modal
+            setCurrentStep(HotelBookingStep.DATE_SELECTION);
+        }
+    }, [isOpen, initialCheckIn, initialCheckOut]);
+
+    // --- VARIABLES ---
     const currentRooms = Math.max(1, Number(bookingConfig.quantity));
     const minGuestsLimit = standardCapacity * currentRooms;
     const maxGuestsLimit = maxCapacity * currentRooms;
 
-    // --- 🔥 AUTO UPDATE SỐ KHÁCH KHI SỐ PHÒNG THAY ĐỔI ---
     useEffect(() => {
         setBookingConfig(prev => ({
             ...prev,
@@ -71,30 +92,23 @@ const HotelBookingModal: React.FC<HotelBookingModalProps> = ({
         }));
     }, [bookingConfig.quantity, standardCapacity]);
 
-    const getTomorrowDate = () => {
-        const today = new Date();
-        today.setDate(today.getDate() + 1);
-        return today.toISOString().split('T')[0];
-    };
-
     const getMinCheckoutDate = () => {
         if (bookingConfig.checkInDate) {
             const checkIn = new Date(bookingConfig.checkInDate);
             checkIn.setDate(checkIn.getDate() + 1);
-            return checkIn.toISOString().split('T')[0];
+            return getLocalDateString(checkIn);
         }
-        return getTomorrowDate();
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 2);
+        return getLocalDateString(tomorrow);
     };
 
-    // --- LOGIC TÍNH TIỀN ---
     const calculateDynamicTotal = () => {
         if (!bookingConfig.checkInDate || !bookingConfig.checkOutDate) return 0;
-
         const start = new Date(bookingConfig.checkInDate);
         const end = new Date(bookingConfig.checkOutDate);
         const roomQty = Math.max(1, Number(bookingConfig.quantity));
         const totalGuests = Math.max(1, Number(bookingConfig.guests));
-
         const totalStandardCapacity = standardCapacity * roomQty;
         const extraPeople = Math.max(0, totalGuests - totalStandardCapacity);
 
@@ -109,46 +123,37 @@ const HotelBookingModal: React.FC<HotelBookingModalProps> = ({
             const day = current.getDay();
             let dailyRoomPrice = 0;
             let dailySurchargeUnit = 0;
-
-            if (day === 0) { // CN
+            if (day === 0) {
                 dailyRoomPrice = priceConfig.priceSunday;
                 dailySurchargeUnit = priceConfig.surchargeSunToThu;
-            } else if (day === 6) { // T7
+            } else if (day === 6) {
                 dailyRoomPrice = priceConfig.priceSaturday;
                 dailySurchargeUnit = priceConfig.surchargeFriSat;
-            } else if (day === 5) { // T6
+            } else if (day === 5) {
                 dailyRoomPrice = priceConfig.priceFriday;
                 dailySurchargeUnit = priceConfig.surchargeFriSat;
-            } else { // T2-T5
+            } else {
                 dailyRoomPrice = priceConfig.priceMonToThu;
                 dailySurchargeUnit = priceConfig.surchargeSunToThu;
             }
             if (!dailyRoomPrice) dailyRoomPrice = priceConfig.priceMonToThu;
 
             totalAmount += (dailyRoomPrice * roomQty);
-
             if (extraPeople > 0) {
                 totalAmount += (extraPeople * dailySurchargeUnit);
             }
-
             current.setDate(current.getDate() + 1);
             nightCount++;
         }
-
-        if (nightCount === 0) {
-            return (priceConfig.priceMonToThu * roomQty) + (extraPeople * priceConfig.surchargeSunToThu);
-        }
-
-        return totalAmount;
+        return totalAmount || 0;
     };
 
     const getNightCount = () => {
         if (!bookingConfig.checkInDate || !bookingConfig.checkOutDate) return 0;
         const start = new Date(bookingConfig.checkInDate);
         const end = new Date(bookingConfig.checkOutDate);
-        start.setHours(0, 0, 0, 0); end.setHours(0, 0, 0, 0);
         const diff = (end.getTime() - start.getTime()) / (1000 * 3600 * 24);
-        return diff > 0 ? diff : 1;
+        return diff > 0 ? Math.round(diff) : 1;
     }
 
     // --- CHECK AVAILABILITY ---
@@ -161,15 +166,20 @@ const HotelBookingModal: React.FC<HotelBookingModalProps> = ({
                     params: {
                         roomTypeCode: roomTypeCode,
                         checkIn: bookingConfig.checkInDate,
-                        checkOut: bookingConfig.checkOutDate
+                        checkOut: bookingConfig.checkOutDate,
+                        _t: new Date().getTime()
                     }
                 });
+
                 if (res.data) {
                     setAvailability({
                         isAvailable: res.data.isAvailable,
                         remainingRooms: res.data.remainingRooms,
                         checking: false
                     });
+                    if (bookingConfig.quantity > res.data.remainingRooms) {
+                        setBookingConfig(prev => ({ ...prev, quantity: Math.max(1, res.data.remainingRooms) }));
+                    }
                 }
             } catch (error) {
                 setAvailability({ isAvailable: false, remainingRooms: 0, checking: false });
@@ -177,7 +187,7 @@ const HotelBookingModal: React.FC<HotelBookingModalProps> = ({
         };
         const timeoutId = setTimeout(checkRoomAvailability, 500);
         return () => clearTimeout(timeoutId);
-    }, [bookingConfig.checkInDate, bookingConfig.checkOutDate, hotelId, roomTypeCode]);
+    }, [bookingConfig.checkInDate, bookingConfig.checkOutDate, hotelId, roomTypeCode, refreshKey]);
 
     // --- HANDLERS ---
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -193,18 +203,27 @@ const HotelBookingModal: React.FC<HotelBookingModalProps> = ({
 
     const handleGuestChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const val = parseInt(e.target.value) || 1;
-        // Sử dụng biến minGuestsLimit và maxGuestsLimit đã tính ở trên
         const validVal = Math.min(Math.max(minGuestsLimit, val), maxGuestsLimit);
         setBookingConfig(prev => ({ ...prev, guests: validVal }));
     };
 
     const handleContinueToContact = () => {
-        if (!bookingConfig.checkInDate || !bookingConfig.checkOutDate) { alert("Vui lòng chọn ngày"); return; }
-        if (availability && !availability.isAvailable) { alert("Đã hết phòng."); return; }
+        const today = getTodayDate();
+        if (!bookingConfig.checkInDate || bookingConfig.checkInDate <= today) {
+            toast.error("Ngày nhận phòng phải từ ngày mai trở đi.");
+            return;
+        }
+        if (!bookingConfig.checkOutDate || bookingConfig.checkOutDate <= bookingConfig.checkInDate) {
+            toast.error("Ngày trả phòng không hợp lệ.");
+            return;
+        }
+        if (availability && !availability.isAvailable) {
+            toast.error("Rất tiếc, loại phòng này hiện không còn trống.");
+            return;
+        }
         setIsContactModalOpen(true);
     };
 
-    // --- 🔥 HÀM XỬ LÝ ĐẶT PHÒNG (QUAN TRỌNG) ---
     const handleConfirmBooking = async (contactData: ContactData & { notificationChannel?: 'EMAIL' | 'ZALO' }) => {
         setIsContactModalOpen(false);
         try {
@@ -216,18 +235,13 @@ const HotelBookingModal: React.FC<HotelBookingModalProps> = ({
                 roomTypeCode: roomTypeCode,
                 checkInDate: bookingConfig.checkInDate,
                 checkOutDate: bookingConfig.checkOutDate,
-                quantity: bookingConfig.quantity,
-                numberOfGuests: bookingConfig.guests,
+                quantity: Number(bookingConfig.quantity),
+                numberOfGuests: Number(bookingConfig.guests),
                 customerName: contactData.name,
                 customerPhone: contactData.phone,
                 otp: contactData.otp,
-                totalAmount: finalTotal,
-
-                // 👇 LOGIC EMAIL (GIỐNG BookingModal)
-                customerEmail: (contactData.notificationChannel === 'ZALO' && !contactData.email)
-                    ? ""
-                    : contactData.email || "",
-
+                totalAmount: Number(finalTotal),
+                customerEmail: contactData.email || "",
                 channel: contactData.notificationChannel || 'EMAIL',
                 notificationChannel: contactData.notificationChannel || 'EMAIL'
             };
@@ -237,62 +251,79 @@ const HotelBookingModal: React.FC<HotelBookingModalProps> = ({
             if (res && (res.success || res.code === 200)) {
                 setBookingResult(res.data);
                 setCurrentStep(HotelBookingStep.PAYMENT_QR);
-                toast.success("Đặt phòng thành công!");
+                toast.success("Đơn hàng đã được tạo!");
             } else {
                 toast.error("Lỗi: " + (res.message || "Không thể tạo đơn"));
             }
 
         } catch (error: any) {
-            console.error(error);
-            toast.error("Đặt phòng thất bại. Vui lòng thử lại.");
+            console.error("Lỗi tạo booking:", error);
+            const backendMsg = error?.response?.data?.message || error?.response?.data?.error;
+            if (backendMsg && (backendMsg.includes("future date") || backendMsg.includes("tương lai"))) {
+                toast.error("Ngày nhận phòng phải là ngày trong tương lai.");
+            } else if (backendMsg) {
+                toast.error(`Đặt phòng thất bại: ${backendMsg}`);
+            } else {
+                toast.error("Đặt phòng thất bại. Vui lòng thử lại.");
+            }
         } finally {
             setLoading(false);
         }
     };
 
-    const handleFinish = () => { if (onSuccess) onSuccess(); onClose(); navigate('/my-tickets'); };
+    const handleFinish = () => {
+        onClose();
+        navigate('/my-tickets');
+    };
 
     if (!isOpen) return null;
-
-    // Biến phụ trợ hiển thị
     const extraGuests = Math.max(0, bookingConfig.guests - minGuestsLimit);
 
     return (
-        <>
+        <div translate="no" className="notranslate">
             {currentStep === HotelBookingStep.DATE_SELECTION && (
                 <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-60 p-4 backdrop-blur-sm">
                     <div className="bg-white w-full max-w-lg p-6 rounded-xl shadow-2xl relative animate-in zoom-in">
                         <div className="flex justify-between items-center mb-5 border-b pb-3">
                             <h2 className="text-xl font-bold text-orange-600 flex items-center gap-2">
-                                <FaHotel /> Đặt phòng
+                                <FaHotel /> <span>Đặt phòng</span>
                             </h2>
                             <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><FaTimes size={20} /></button>
                         </div>
 
                         <div className="space-y-5">
-                            {/* Date Picker */}
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="text-xs font-bold text-gray-500 block mb-1">Nhận phòng</label>
-                                    <input type="date" name="checkInDate" min={getTomorrowDate()} value={bookingConfig.checkInDate} onChange={handleChange} className="w-full border p-2 rounded text-sm outline-none focus:border-orange-500" />
+                                    <label className="text-xs font-bold text-gray-500 block mb-1"><span>Nhận phòng</span></label>
+                                    <input
+                                        type="date"
+                                        name="checkInDate"
+                                        min={getTomorrowDate()}
+                                        value={bookingConfig.checkInDate}
+                                        onChange={handleChange}
+                                        className="block w-full bg-white text-gray-900 border border-gray-300 rounded-lg h-12 px-3 py-2 text-base outline-none focus:ring-2 focus:ring-orange-500"
+                                    />
                                 </div>
                                 <div>
-                                    <label className="text-xs font-bold text-gray-500 block mb-1">Trả phòng</label>
-                                    <input type="date" name="checkOutDate" min={getMinCheckoutDate()} value={bookingConfig.checkOutDate} onChange={handleChange} className="w-full border p-2 rounded text-sm outline-none focus:border-orange-500" />
+                                    <label className="text-xs font-bold text-gray-500 block mb-1"><span>Trả phòng</span></label>
+                                    <input
+                                        type="date"
+                                        name="checkOutDate"
+                                        min={getMinCheckoutDate()}
+                                        value={bookingConfig.checkOutDate}
+                                        onChange={handleChange}
+                                        className="block w-full bg-white text-gray-900 border border-gray-300 rounded-lg h-12 px-3 py-2 text-base outline-none focus:ring-2 focus:ring-orange-500"
+                                    />
                                 </div>
                             </div>
 
-                            {/* Availability Alert */}
-                            {bookingConfig.checkInDate && bookingConfig.checkOutDate && (
-                                <div className={`p-3 rounded-lg text-sm flex items-center gap-2 ${availability?.checking ? 'bg-gray-100' : (availability?.remainingRooms === 0 ? 'bg-red-100 text-red-700' : 'bg-green-50 text-green-700')}`}>
-                                    {availability?.checking ? "Đang kiểm tra..." : (availability?.remainingRooms === 0 ? <><FaExclamationCircle /> Hết phòng!</> : <><FaCheckCircle /> Còn {availability?.remainingRooms} phòng.</>)}
-                                </div>
-                            )}
+                            <div className={`p-3 rounded-lg text-sm flex items-center gap-2 ${availability?.checking ? 'bg-gray-100' : (availability?.remainingRooms === 0 ? 'bg-red-100 text-red-700' : 'bg-green-50 text-green-700')}`}>
+                                {availability?.checking ? <span>Đang kiểm tra...</span> : (availability?.remainingRooms === 0 ? <><FaExclamationCircle /> <span>Hết phòng!</span></> : <><FaCheckCircle /> <span>Còn {availability?.remainingRooms} phòng.</span></>)}
+                            </div>
 
-                            {/* Quantity Inputs */}
                             <div className="grid grid-cols-2 gap-3 bg-orange-50 p-3 rounded-lg border border-orange-100">
                                 <div>
-                                    <label className="text-xs font-bold text-orange-800 block mb-1 flex items-center gap-1"><FaBed /> Số phòng</label>
+                                    <label className="text-xs font-bold text-orange-800 block mb-1 flex items-center gap-1"><FaBed /> <span>Số phòng</span></label>
                                     <input
                                         type="number"
                                         min="1"
@@ -304,8 +335,7 @@ const HotelBookingModal: React.FC<HotelBookingModalProps> = ({
                                 </div>
                                 <div>
                                     <label className="text-xs font-bold text-orange-800 block mb-1 flex items-center gap-1">
-                                        <FaUserFriends /> Số khách
-                                        <span className="ml-1 text-[10px] font-normal text-gray-500">(Max: {maxGuestsLimit})</span>
+                                        <FaUserFriends /> <span>Số khách (Max: {maxGuestsLimit})</span>
                                     </label>
                                     <input
                                         type="number"
@@ -315,43 +345,53 @@ const HotelBookingModal: React.FC<HotelBookingModalProps> = ({
                                         onChange={handleGuestChange}
                                         className="w-full border border-orange-200 p-2 rounded text-sm text-center font-bold outline-none"
                                     />
-                                    <div className="text-[10px] text-center text-gray-500 mt-1">
-                                        Tiêu chuẩn: {minGuestsLimit} người
-                                    </div>
                                 </div>
                             </div>
 
-                            {/* Price Summary */}
                             <div className="bg-gray-50 p-4 rounded border border-gray-200 mt-2">
                                 <div className="flex justify-between items-center mb-1">
-                                    <span className="text-sm text-gray-600 font-bold">Tổng tạm tính:</span>
+                                    <span className="text-sm text-gray-600 font-bold"><span>Tổng tạm tính:</span></span>
                                     <span className="text-xl font-bold text-orange-600">
-                                        {calculateDynamicTotal().toLocaleString()} ₫
+                                        <span>{calculateDynamicTotal().toLocaleString()} ₫</span>
                                     </span>
                                 </div>
                                 <div className="text-right text-xs text-gray-500">
-                                    <p>{bookingConfig.quantity} phòng x {getNightCount()} đêm</p>
-                                    {extraGuests > 0 ? (
-                                        <p className="text-red-500 font-bold mt-1">
-                                            + Phụ thu {extraGuests} người
-                                        </p>
-                                    ) : (
-                                        <p className="text-green-600 italic mt-1">Không có phụ thu</p>
-                                    )}
+                                    <p><span>{bookingConfig.quantity} phòng x {getNightCount()} đêm</span></p>
+                                    {extraGuests > 0 && <p className="text-red-500 font-bold mt-1"><span>+ Phụ thu {extraGuests} người</span></p>}
                                 </div>
                             </div>
 
-                            <button onClick={handleContinueToContact} disabled={loading || (availability !== null && availability.remainingRooms === 0)} className={`w-full py-3.5 rounded-lg font-bold flex items-center justify-center gap-2 transition-all ${(availability !== null && availability.remainingRooms === 0) ? 'bg-gray-300 cursor-not-allowed' : 'bg-orange-600 text-white hover:bg-orange-700'}`}>
-                                {loading ? 'Đang xử lý...' : (availability?.remainingRooms === 0 ? 'Đã hết phòng' : <>Tiếp tục <FaArrowRight /></>)}
+                            <button
+                                onClick={handleContinueToContact}
+                                disabled={loading || (availability !== null && availability.remainingRooms === 0)}
+                                className={`w-full py-3.5 rounded-lg font-bold flex items-center justify-center gap-2 transition-all ${(availability !== null && availability.remainingRooms === 0) ? 'bg-gray-300 cursor-not-allowed' : 'bg-orange-600 text-white hover:bg-orange-700'}`}
+                            >
+                                {loading ? <span>Đang xử lý...</span> : (availability?.remainingRooms === 0 ? <span>Đã hết phòng</span> : <><span>Tiếp tục</span> <FaArrowRight /></>)}
                             </button>
                         </div>
                     </div>
                 </div>
             )}
+
             <HotelContactModal isOpen={isContactModalOpen} onClose={() => setIsContactModalOpen(false)} onConfirm={handleConfirmBooking} />
-            {currentStep === HotelBookingStep.PAYMENT_QR && <PaymentStepModal isOpen={true} onClose={onClose} paymentData={bookingResult} onPaymentSuccess={() => setCurrentStep(HotelBookingStep.SUCCESS_RECEIPT)} />}
-            {currentStep === HotelBookingStep.SUCCESS_RECEIPT && <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-60"><div className="bg-white p-8 rounded-lg text-center max-w-sm"><FaCalendarCheck className="text-green-600 text-5xl mx-auto mb-4" /><h3 className="text-2xl font-bold text-green-700">Thành công!</h3><button onClick={handleFinish} className="mt-6 w-full bg-indigo-600 text-white py-2 rounded">Hoàn tất</button></div></div>}
-        </>
+
+            <PaymentStepModal
+                isOpen={currentStep === HotelBookingStep.PAYMENT_QR}
+                onClose={onClose}
+                paymentData={bookingResult}
+                onPaymentSuccess={() => {
+                    if (onSuccess) onSuccess();
+                    setRefreshKey(prev => prev + 1);
+                    setCurrentStep(HotelBookingStep.SUCCESS_RECEIPT);
+                    toast.success("Thanh toán thành công!");
+                }}
+            />
+
+            <BookingSuccessModal
+                isOpen={currentStep === HotelBookingStep.SUCCESS_RECEIPT}
+                onFinish={handleFinish}
+            />
+        </div>
     );
 };
 

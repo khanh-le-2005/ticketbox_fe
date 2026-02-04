@@ -3,6 +3,7 @@ import { FaTimes, FaRedo } from 'react-icons/fa';
 import { ContactInfo } from '../types';
 import VerificationApi from '../api/verification_api';
 import { OtpVerificationModalProps } from '@/type/Otpvspay.type';
+import { toast } from 'react-toastify';
 
 // interface OtpVerificationModalProps {
 //     isOpen: boolean;
@@ -60,7 +61,7 @@ const OtpVerificationModal: React.FC<OtpVerificationModalProps> = ({
     const handleVerify = async () => {
         const otpCode = otp.join("");
         if (otpCode.length < 6) {
-            alert("Vui lòng nhập đủ 6 số OTP");
+            toast.error("Vui lòng nhập đủ 6 số OTP");
             return;
         }
 
@@ -74,14 +75,14 @@ const OtpVerificationModal: React.FC<OtpVerificationModalProps> = ({
             if (res && res.success) {
                 onConfirm(otpCode);
             } else {
-                alert("❌ Mã OTP không chính xác hoặc đã hết hạn!");
+                toast.error("❌ Mã OTP không chính xác hoặc đã hết hạn!");
                 setOtp(new Array(6).fill(""));
                 inputRefs.current[0]?.focus();
             }
         } catch (error: any) {
             console.error("Lỗi xác thực:", error);
             const msg = error.response?.data?.message || "Lỗi kết nối Server";
-            alert(`❌ ${msg}`);
+            toast.error(`❌ ${msg}`);
         } finally {
             setIsLoading(false);
         }
@@ -96,15 +97,15 @@ const OtpVerificationModal: React.FC<OtpVerificationModalProps> = ({
             const res = await VerificationApi.requestOtp(contactInfo.email);
 
             if (res && res.success) {
-                alert("✅ Đã gửi lại mã OTP mới vào email!");
+                toast.error("✅ Đã gửi lại mã OTP mới vào email!");
                 setTimer(300); // Reset lại 5 phút
                 setOtp(new Array(6).fill("")); // Xóa ô nhập cũ
                 inputRefs.current[0]?.focus();
             } else {
-                alert("Gửi lại thất bại: " + res.message);
+                toast.error("Gửi lại thất bại: " + res.message);
             }
         } catch (error) {
-            alert("Không thể gửi lại mã. Vui lòng thử lại sau.");
+            toast.error("Không thể gửi lại mã. Vui lòng thử lại sau.");
         } finally {
             setIsLoading(false);
         }

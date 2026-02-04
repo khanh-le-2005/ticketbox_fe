@@ -2,6 +2,7 @@
 import React from 'react';
 import { QrVerificationModalProps } from '../types';
 import { FaTimes, FaReceipt, FaQrcode } from 'react-icons/fa';
+import QRCode from "qrcode";
 
 const QrVerificationModal: React.FC<QrVerificationModalProps> = ({
     isOpen,
@@ -12,11 +13,26 @@ const QrVerificationModal: React.FC<QrVerificationModalProps> = ({
 }) => {
     if (!isOpen || !qrCodeData) return null;
 
-    // Tạo QR Code từ API
-    const qrCodeUrl = React.useMemo(() => {
-        return `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(
-            qrCodeData
-        )}&margin=10`;
+    const [qrCodeUrl, setQrCodeUrl] = React.useState<string>("");
+
+    // Tạo QR Code bằng thư viện `qrcode` (không phụ thuộc API ngoài)
+    React.useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const url = await QRCode.toDataURL(qrCodeData, {
+                    width: 250,
+                    margin: 1,
+                    errorCorrectionLevel: "M",
+                });
+                if (!cancelled) setQrCodeUrl(url);
+            } catch {
+                if (!cancelled) setQrCodeUrl("");
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
     }, [qrCodeData]);
 
 
@@ -33,8 +49,8 @@ const QrVerificationModal: React.FC<QrVerificationModalProps> = ({
                         <FaTimes size={20} />
                     </button>
                     <div className="flex justify-center mb-2">
-                        <div className="p-3 bg-white/20 rounded-full">
-                            <FaQrcode className="text-white text-2xl" />
+                        <div className="p-3 bg-white/20 rounded-full text-white text-2xl">
+                            <FaQrcode />
                         </div>
                     </div>
                     <h2 className="text-2xl font-bold text-white mb-1">Mã QR Đặt Vé</h2>
@@ -48,13 +64,19 @@ const QrVerificationModal: React.FC<QrVerificationModalProps> = ({
 
                     {/* Khung chứa QR */}
                     <div className="bg-white p-2 rounded-xl inline-block border-4 border-orange-100 shadow-sm mb-6">
-                        <img
-                            src={qrCodeUrl}
-                            alt="Booking QR Code"
-                            onError={(e) => {
-                                (e.target as HTMLImageElement).src = '/qr-fallback.png';
-                            }}
-                        />
+                        {qrCodeUrl ? (
+                            <img
+                                src={qrCodeUrl}
+                                alt="Booking QR Code"
+                                onError={(e) => {
+                                    (e.target as HTMLImageElement).src = '/qr-fallback.png';
+                                }}
+                            />
+                        ) : (
+                            <div className="w-[250px] h-[250px] flex items-center justify-center text-gray-400 text-sm">
+                                Đang tạo mã QR...
+                            </div>
+                        )}
                     </div>
 
                     <p className="text-gray-500 text-xs mb-6 px-4">

@@ -4,6 +4,7 @@ import {
     FaUser, FaEnvelope, FaPhone, FaLock, FaEye, FaEyeSlash, 
     FaSpinner, FaIdCard, FaUserPlus 
 } from 'react-icons/fa';
+import { toast } from 'react-toastify';
 
 // Ảnh nền giống trang Login để đồng bộ
 const BANNER_IMAGE = "https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=1000&auto=format&fit=crop";
@@ -41,13 +42,13 @@ const RegisterPage: React.FC = () => {
 
         // 1. Validate Mật khẩu
         if (formData.password !== formData.confirmPassword) {
-            alert("Mật khẩu xác nhận không khớp!");
+            toast.error("Mật khẩu xác nhận không khớp!");
             return;
         }
 
         // 2. Validate Số điện thoại
         if (!validatePhone(formData.phone)) {
-            alert("Số điện thoại không hợp lệ! Vui lòng nhập 10 số và bắt đầu bằng 03, 05, 07, 08, 09.");
+            toast.error("Số điện thoại không hợp lệ! Vui lòng nhập 10 số và bắt đầu bằng 03, 05, 07, 08, 09.");
             return;
         }
 
@@ -78,16 +79,16 @@ const RegisterPage: React.FC = () => {
 
             // Kiểm tra phản hồi
             if (response.ok && data.success) {
-                alert(data.message || "Đăng ký tài khoản thành công! Vui lòng đăng nhập.");
+                toast.success(data.message || "Đăng ký tài khoản thành công! Vui lòng đăng nhập.");
                 navigate('/login');
             } else {
                 const errorMessage = data.message || "Đăng ký thất bại. Vui lòng kiểm tra lại thông tin.";
-                throw new Error(errorMessage);
+                toast.error(errorMessage);
             }
 
         } catch (error: any) {
             console.error("Lỗi đăng ký:", error);
-            alert(error.message || "Có lỗi kết nối đến máy chủ.");
+            toast.error(error.message || "Có lỗi kết nối đến máy chủ.");
         } finally {
             setLoading(false);
         }

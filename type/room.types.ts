@@ -59,3 +59,17 @@ export interface HotelPaymentResponse {
   amount: number;
   qr_base64: string;
 }
+
+// export interface HotelBookingResponse {
+//   bookingId: string;
+//   hotelId: string;
+//   roomTypeCode: string;
+//   checkInDate: string;
+//   checkOutDate: string;
+//   quantity: number;
+//   numberOfGuests: number;
+//   totalAmount: number;
+//   status: string;
+//   createdAt: string;
+//   updatedAt: string;
+// }

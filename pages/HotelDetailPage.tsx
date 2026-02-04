@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import {
   FaMapMarkerAlt, FaStar, FaCheckCircle, FaUserFriends, FaBed,
   FaFacebook, FaTwitter, FaShareAlt, FaChevronLeft, FaChevronRight,
-  FaTimes, FaPhone
+  FaTimes, FaPhone, FaCalendarAlt
 } from "react-icons/fa";
 
 import Header from "../components/Header";
@@ -25,6 +25,7 @@ import 'swiper/css/thumbs';
 import 'swiper/css/free-mode';
 import 'swiper/css/effect-fade';
 import type { Swiper as SwiperType } from 'swiper';
+import { toast } from 'react-toastify';
 
 const IMAGE_BASE_URL = "https://api.momangshow.vn/api/images";
 
@@ -44,6 +45,19 @@ const HotelDetailPage: React.FC = () => {
 
   const [selectedRoomType, setSelectedRoomType] = useState<RoomType | null>(null);
   const [realtimePrice, setRealtimePrice] = useState<number>(0);
+
+  // --- DATES STATE ---
+  const [checkIn, setCheckIn] = useState<string>(() => {
+    const d = new Date();
+    return d.toISOString().split('T')[0];
+  });
+  const [checkOut, setCheckOut] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split('T')[0];
+  });
+  const [availabilityMap, setAvailabilityMap] = useState<Record<string, number>>({});
+  const [isAvailabilityLoading, setIsAvailabilityLoading] = useState(false);
 
   // --- HELPER: FORMAT TIỀN TỆ ---
   const formatCurrency = (amount: number | undefined | null) => {
@@ -124,7 +138,46 @@ const HotelDetailPage: React.FC = () => {
     fetchRoomPrice();
   }, [id, selectedRoomType, getDisplayPrice]);
 
-  const handleBookingSuccess = () => fetchHotelDetail(false);
+  // --- 3. FETCH AVAILABILITY ---
+  const fetchAllAvailability = useCallback(async () => {
+    if (!id || !hotel?.roomTypes || hotel.roomTypes.length === 0) return;
+
+    try {
+      setIsAvailabilityLoading(true);
+      const results: Record<string, number> = {};
+
+      // Gọi API checking cho từng loại phòng
+      const promises = hotel.roomTypes.map(async (room) => {
+        try {
+          const res: any = await hotelApi.checkAvailability(id, room.code || "", checkIn, checkOut);
+          const data = res.data?.data || res.data;
+          if (data && typeof data.availableRooms === 'number') {
+            results[room.code || ""] = data.availableRooms;
+          } else if (data && typeof data.remainingRooms === 'number') {
+            results[room.code || ""] = data.remainingRooms;
+          }
+        } catch (error) {
+          console.warn("Failed to check availability for", room.code);
+        }
+      });
+
+      await Promise.all(promises);
+      setAvailabilityMap(results);
+    } catch (error) {
+      console.error("Error fetching all availability:", error);
+    } finally {
+      setIsAvailabilityLoading(false);
+    }
+  }, [id, hotel?.roomTypes, checkIn, checkOut]);
+
+  useEffect(() => {
+    fetchAllAvailability();
+  }, [fetchAllAvailability]);
+
+  const handleBookingSuccess = () => {
+    fetchHotelDetail(false);
+    fetchAllAvailability();
+  };
 
   // Gallery handlers
   const openLightbox = (index: number) => { setPhotoIndex(index); setIsGalleryOpen(true); };
@@ -245,7 +298,38 @@ const HotelDetailPage: React.FC = () => {
 
               {/* Danh sách Loại phòng */}
               <div>
-                <h2 className="text-lg font-bold text-gray-800 mb-4 border-l-4 border-orange-500 pl-3">Chọn loại phòng</h2>
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-6 border-b border-dashed border-gray-100">
+                  <h2 className="text-lg font-bold text-gray-800 border-l-4 border-orange-500 pl-3">Chọn loại phòng</h2>
+
+                  <div className="flex flex-wrap items-center gap-3 bg-orange-50 p-3 rounded-lg border border-orange-100 w-full md:w-auto">
+                    <div className="flex items-center gap-2">
+                      <FaCalendarAlt className="text-orange-500" />
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-orange-800 uppercase">Nhận phòng</span>
+                        <input
+                          type="date"
+                          value={checkIn}
+                          onChange={(e) => setCheckIn(e.target.value)}
+                          className="bg-transparent text-sm font-bold outline-none text-gray-700"
+                        />
+                      </div>
+                    </div>
+                    <div className="h-8 w-px bg-orange-200 hidden md:block"></div>
+                    <div className="flex items-center gap-2">
+                      <FaCalendarAlt className="text-orange-500" />
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-orange-800 uppercase">Trả phòng</span>
+                        <input
+                          type="date"
+                          value={checkOut}
+                          min={checkIn}
+                          onChange={(e) => setCheckOut(e.target.value)}
+                          className="bg-transparent text-sm font-bold outline-none text-gray-700"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 <div className="space-y-4">
                   {hotel.roomTypes?.map((room) => (
                     <div
@@ -255,11 +339,23 @@ const HotelDetailPage: React.FC = () => {
                     >
                       <div className="flex-1">
                         <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2">
-                          {room.name} {selectedRoomType?.code === room.code && <FaCheckCircle className="text-orange-500" />}
+                          {room.name} {selectedRoomType?.code === room.code && <span className="text-orange-500"><FaCheckCircle /></span>}
                         </h3>
-                        <div className="text-sm text-gray-500 mt-2 flex gap-4">
-                          <span className="flex items-center gap-1 bg-white px-2 py-1 rounded border"><FaUserFriends className="text-gray-400" /> {room.standardCapacity} người</span>
-                          <span className="flex items-center gap-1 bg-white px-2 py-1 rounded border"><FaBed className="text-gray-400" /> {room.totalRooms} phòng</span>
+                        <div className="text-sm text-gray-500 mt-2 flex flex-wrap gap-3">
+                          <span className="flex items-center gap-1 bg-white px-2 py-1 rounded border shadow-sm"><FaUserFriends className="text-gray-400" /> {room.standardCapacity} người</span>
+                          {isAvailabilityLoading ? (
+                            <span className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded border animate-pulse text-xs italic">Đang kiểm tra...</span>
+                          ) : availabilityMap[room.code || ""] !== undefined ? (
+                            <span className={`flex items-center gap-1 px-2 py-1 rounded border shadow-sm font-bold ${availabilityMap[room.code || ""] > 0 ? "bg-green-50 border-green-200 text-green-700" : "bg-red-50 border-red-200 text-red-700"}`}>
+                              <span className={availabilityMap[room.code || ""] > 0 ? "text-green-500" : "text-red-500"}><FaBed /></span>
+                              {availabilityMap[room.code || ""] > 0 && availabilityMap[room.code || ""] < 5
+                                ? `Chỉ còn ${availabilityMap[room.code || ""]} phòng!`
+                                : `Còn ${availabilityMap[room.code || ""]} phòng`
+                              }
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 bg-white px-2 py-1 rounded border shadow-sm"><FaBed className="text-gray-400" /> Tổng {room.totalRooms} phòng</span>
+                          )}
                         </div>
                       </div>
                       <div className="text-right">
@@ -302,21 +398,21 @@ const HotelDetailPage: React.FC = () => {
               </div>
 
               <ul className="text-sm text-gray-500 space-y-2 mb-6 border-t border-gray-100 pt-4">
-                <li className="flex items-center gap-2"><FaCheckCircle className="text-green-500" /> Đảm bảo giá tốt nhất</li>
-                <li className="flex items-center gap-2"><FaCheckCircle className="text-green-500" /> Không phí đặt chỗ</li>
-                <li className="flex items-center gap-2"><FaCheckCircle className="text-green-500" /> Xác nhận tức thì</li>
+                <li className="flex items-center gap-2"><span className="text-green-500"><FaCheckCircle /></span> Đảm bảo giá tốt nhất</li>
+                <li className="flex items-center gap-2"><span className="text-green-500"><FaCheckCircle /></span> Không phí đặt chỗ</li>
+                <li className="flex items-center gap-2"><span className="text-green-500"><FaCheckCircle /></span> Xác nhận tức thì</li>
               </ul>
 
               <button
                 onClick={() => {
                   if (selectedRoomType) setIsModalOpen(true);
-                  else alert("Vui lòng chọn loại phòng trước!");
+                  else toast.error("Vui lòng chọn loại phòng trước!");
                 }}
-                disabled={!selectedRoomType || selectedRoomType.totalRooms === 0}
+                disabled={!selectedRoomType || (availabilityMap[selectedRoomType.code || ""] === 0)}
                 className={`w-full font-bold py-4 px-4 rounded-xl transition-all shadow-lg shadow-orange-200 hover:-translate-y-1
-                ${selectedRoomType && selectedRoomType.totalRooms > 0 ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:to-orange-700" : "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"}`}
+                ${selectedRoomType && availabilityMap[selectedRoomType.code || ""] !== 0 ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:to-orange-700" : "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"}`}
               >
-                {selectedRoomType && selectedRoomType.totalRooms === 0 ? "Hết phòng" : "ĐẶT PHÒNG NGAY"}
+                {selectedRoomType && availabilityMap[selectedRoomType.code || ""] === 0 ? "HẾT PHÒNG" : "ĐẶT PHÒNG NGAY"}
               </button>
 
               {/* CHIA SẺ */}
@@ -364,33 +460,31 @@ const HotelDetailPage: React.FC = () => {
           onSuccess={handleBookingSuccess}
         />
       )} */}
-      {/* ... */}
       {selectedRoomType && (
         <HotelBookingModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
-          hotelId={hotel.id}
-          roomTypeCode={selectedRoomType.code || ""}
 
-          // 👇 CÁC PROPS QUAN TRỌNG VỪA SỬA
-          standardCapacity={selectedRoomType.standardCapacity || 2} // VD: 3
-          maxCapacity={selectedRoomType.maxCapacity || 4}           // VD: 4
+          hotelId={hotel?.id || ""}
+          roomTypeCode={selectedRoomType?.code || ""}
+
+          standardCapacity={selectedRoomType?.standardCapacity || 2}
+          maxCapacity={selectedRoomType?.maxCapacity || 4}
 
           priceConfig={{
-            priceMonToThu: selectedRoomType.priceMonToThu || 0,
-            priceFriday: selectedRoomType.priceFriday || 0,
-            priceSaturday: selectedRoomType.priceSaturday || 0,
-            priceSunday: selectedRoomType.priceSunday || 0,
-            surchargeSunToThu: selectedRoomType.surchargeSunToThu || 0,
-            surchargeFriSat: selectedRoomType.surchargeFriSat || 0
+            priceMonToThu: selectedRoomType?.priceMonToThu || 0,
+            priceFriday: selectedRoomType?.priceFriday || 0,
+            priceSaturday: selectedRoomType?.priceSaturday || 0,
+            priceSunday: selectedRoomType?.priceSunday || 0,
+            surchargeSunToThu: selectedRoomType?.surchargeSunToThu || 0,
+            surchargeFriSat: selectedRoomType?.surchargeFriSat || 0
           }}
+
+          initialCheckIn={checkIn}
+          initialCheckOut={checkOut}
           onSuccess={handleBookingSuccess}
         />
       )}
-      {/* ... */}
-
-      {/* Float Buttons - GIỮ NGUYÊN CODE CŨ CỦA BẠN */}
-
       <FloatButton />
     </div>
   );

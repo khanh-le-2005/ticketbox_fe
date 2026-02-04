@@ -12,6 +12,7 @@
     "axios": "^1.13.2",
     "dompurify": "^3.3.1",
     "lucide-react": "^0.561.0",
+    "qrcode": "^1.5.4",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-hook-form": "^7.69.0",
@@ -21,6 +22,7 @@
     "swiper": "^12.0.3"
   },
   "devDependencies": {
+    "@types/qrcode": "^1.5.5",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
     "typescript": "~5.8.2",

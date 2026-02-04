@@ -12,9 +12,8 @@ const BookingSuccessToast: React.FC<BookingSuccessToastProps> = ({ message, isVi
             <div className="bg-white border-l-4 border-green-500 rounded-r-lg shadow-2xl p-4 flex items-center gap-4 min-w-[300px]">
                 {/* Icon với nền xanh nhạt */}
                 <div className="bg-green-100 p-2 rounded-full">
-                    <FaCheckCircle className="text-green-600 text-xl" />
+                   <span className="text-green-600 text-xl"><FaCheckCircle /></span>
                 </div>
-
                 {/* Nội dung */}
                 <div>
                     <h4 className="font-bold text-gray-800 text-sm">Thành công!</h4>

@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaTimes, FaUser, FaPhone, FaEnvelope, FaLock, FaArrowLeft, FaSpinner, FaHotel } from 'react-icons/fa';
 import roomApi from "@/api/room_api";
 import zaloLogo from '../assets/zalo.webp';
 import { ContactData, HotelContactModalProps } from '@/type/contact.type';
+import { toast } from 'react-toastify';
 
 const HotelContactModal: React.FC<HotelContactModalProps> = ({ isOpen, onClose, onConfirm }) => {
     const [step, setStep] = useState<1 | 2>(1);
     const [loading, setLoading] = useState(false);
 
-    // State lưu kênh nhận vé: 'email' hoặc 'zalo'
     const [otpMethod, setOtpMethod] = useState<'email' | 'zalo'>('email');
 
     const [formData, setFormData] = useState<ContactData>({
@@ -19,19 +19,49 @@ const HotelContactModal: React.FC<HotelContactModalProps> = ({ isOpen, onClose, 
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
+    useEffect(() => {
+        if (!isOpen) {
+            setStep(1);
+            setLoading(false);
+            setFormData({
+                name: '',
+                email: '',
+                phone: '',
+                otp: '',
+                notificationChannel: 'EMAIL'
+            });
+        }
+    }, [isOpen]);
+
+    const handleResendOtp = async () => {
+        setLoading(true);
+        try {
+            if (otpMethod === 'email') {
+                await roomApi.requestOtp(formData.email, 'EMAIL', 'HOTEL');
+            } else {
+                await roomApi.requestOtp(formData.phone, 'ZALO', 'HOTEL');
+            }
+            toast.success("Đã gửi lại mã OTP");
+        } catch (error: any) {
+            toast.error("Gửi lại OTP thất bại");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // --- XỬ LÝ GỬI OTP ---
     const handleSendOtp = async (e: React.FormEvent) => {
         e.preventDefault();
 
         // 1. Validate chung: Tên và SĐT luôn bắt buộc
         if (!formData.name || !formData.phone) {
-            alert("Vui lòng điền Họ tên và Số điện thoại!");
+            toast.error("Vui lòng điền Họ tên và Số điện thoại!");
             return;
         }
 
         // 2. Validate riêng theo kênh
         if (otpMethod === 'email' && !formData.email) {
-            alert("Bạn chọn nhận vé qua Email, vui lòng nhập địa chỉ Email!");
+            toast.error("Bạn chọn nhận vé qua Email, vui lòng nhập địa chỉ Email!");
             return;
         }
 
@@ -49,7 +79,7 @@ const HotelContactModal: React.FC<HotelContactModalProps> = ({ isOpen, onClose, 
         } catch (error: any) {
             console.error("Lỗi gửi OTP:", error);
             const msg = error.response?.data?.message || "Gửi OTP thất bại. Vui lòng kiểm tra lại thông tin.";
-            alert(msg);
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -58,7 +88,7 @@ const HotelContactModal: React.FC<HotelContactModalProps> = ({ isOpen, onClose, 
     // --- XỬ LÝ XÁC NHẬN ---
     const handleSubmitConfirm = () => {
         if (!formData.otp || formData.otp.length < 6) {
-            alert("Vui lòng nhập mã OTP hợp lệ (6 số)");
+            toast.error("Vui lòng nhập mã OTP hợp lệ (6 số)");
             return;
         }
 
@@ -74,7 +104,10 @@ const HotelContactModal: React.FC<HotelContactModalProps> = ({ isOpen, onClose, 
         };
 
         // Ép kiểu hoặc truyền data đã xử lý về parent
-        onConfirm(finalData as any);
+        setTimeout(() => {
+            onConfirm(finalData as any);
+        }, 0);
+
     };
 
     if (!isOpen) return null;
@@ -132,7 +165,7 @@ const HotelContactModal: React.FC<HotelContactModalProps> = ({ isOpen, onClose, 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Họ tên khách hàng <span className="text-red-500">*</span></label>
                                 <div className="relative">
-                                    <FaUser className="absolute left-3 top-3 text-gray-400" />
+                                    <span className="absolute left-3 top-3 text-gray-400"><FaUser /></span>
                                     <input name="name" value={formData.name} onChange={handleChange} className="w-full pl-10 pr-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-orange-500 outline-none" placeholder="Nguyễn Văn A" required />
                                 </div>
                             </div>
@@ -144,7 +177,7 @@ const HotelContactModal: React.FC<HotelContactModalProps> = ({ isOpen, onClose, 
                                     {otpMethod === 'zalo' && <span className="text-xs text-blue-600 ml-1">(Nhận OTP & Vé)</span>}
                                 </label>
                                 <div className="relative">
-                                    <FaPhone className="absolute left-3 top-3 text-gray-400" />
+                                    <span className="absolute left-3 top-3 text-gray-400"><FaPhone /></span>
                                     <input name="phone" value={formData.phone} onChange={handleChange} className="w-full pl-10 pr-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-orange-500 outline-none" placeholder="0912xxxxxx" required />
                                 </div>
                             </div>
@@ -155,7 +188,7 @@ const HotelContactModal: React.FC<HotelContactModalProps> = ({ isOpen, onClose, 
                                         Email khách hàng <span className="text-red-500">*</span>
                                     </label>
                                     <div className="relative">
-                                        <FaEnvelope className="absolute left-3 top-3 text-gray-400" />
+                                        <span className="absolute left-3 top-3 text-gray-400"><FaEnvelope /></span>
                                         <input
                                             type="email"
                                             name="email"
@@ -170,7 +203,7 @@ const HotelContactModal: React.FC<HotelContactModalProps> = ({ isOpen, onClose, 
                             )}
 
                             <button type="submit" disabled={loading} className="w-full bg-orange-600 text-white py-3 rounded-xl font-bold hover:bg-orange-700 transition-all shadow-lg mt-4 flex justify-center items-center gap-2 disabled:bg-gray-400">
-                                {loading ? <><FaSpinner className="animate-spin" /> Đang gửi OTP...</> : "Gửi OTP Xác thực"}
+                                {loading ? <> <span className="animate-spin"><FaSpinner /></span> Đang gửi OTP...</> : "Gửi OTP Xác thực"}
                             </button>
                         </form>
                     )}
@@ -181,7 +214,7 @@ const HotelContactModal: React.FC<HotelContactModalProps> = ({ isOpen, onClose, 
                             <div className="text-center">
                                 <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-3 border border-orange-100">
                                     {otpMethod === 'email' ? (
-                                        <FaEnvelope className="text-orange-600 text-2xl" />
+                                        <span className="text-orange-600 text-2xl"><FaEnvelope /></span>
                                     ) : (
                                         <img src={zaloLogo} alt="Zalo" className="w-8 h-8 object-contain" />
                                     )}
@@ -200,7 +233,7 @@ const HotelContactModal: React.FC<HotelContactModalProps> = ({ isOpen, onClose, 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2 text-center">Nhập mã xác thực (6 số)</label>
                                 <div className="relative">
-                                    <FaLock className="absolute left-3 top-3.5 text-orange-500" />
+                                    <span className="absolute left-3 top-3.5 text-orange-500"><FaLock /></span>
                                     <input name="otp" value={formData.otp} onChange={handleChange} maxLength={6} className="w-full pl-10 pr-3 py-3 border-2 border-orange-200 rounded-xl focus:border-orange-500 outline-none text-center text-2xl font-bold tracking-[0.5em] text-gray-700" placeholder="000000" autoFocus />
                                 </div>
                             </div>
@@ -210,7 +243,7 @@ const HotelContactModal: React.FC<HotelContactModalProps> = ({ isOpen, onClose, 
                             </div>
 
                             <div className="text-center text-xs text-gray-500">
-                                Chưa nhận được mã? <button type="button" onClick={(e) => handleSendOtp(e as any)} disabled={loading} className="text-orange-600 hover:underline font-medium disabled:text-gray-400">{loading ? 'Đang gửi...' : 'Gửi lại mã'}</button>
+                                Chưa nhận được mã? <button type="button" onClick={handleResendOtp} disabled={loading} className="text-orange-600 hover:underline font-medium disabled:text-gray-400">{loading ? 'Đang gửi...' : 'Gửi lại mã'}</button>
                             </div>
                         </div>
                     )}

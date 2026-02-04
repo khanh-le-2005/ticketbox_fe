@@ -10,47 +10,57 @@ import {
   FaUser,
   FaQrcode,
   FaSignInAlt,
+  FaHotel,
+  FaMusic,
 } from "react-icons/fa";
 import Header from "../components/Header";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { useAuth } from "../hooks/useAuth";
 import BookingApi from "../api/bookingApi";
-// Đảm bảo BookingApi.getHistory() gọi đúng: axiosClient.get('/bookings/my-history');
-import { TicketItem } from "../type/Tickets.type";
 import FloatButton from "@/components/FloatButton";
 
+// ĐỊNH NGHĨA LẠI INTERFACE DỰA TRÊN JSON BẠN GỬI
+// Bạn nên cập nhật lại file ../type/Tickets.type tương tự như này
+interface BookingItem {
+  id: string;
+  type: "HOTEL" | "SHOW";
+  title: string;
+  eventDate: string; // Tương ứng showTime hoặc checkInDate
+  location: string;
+  totalAmount: number;
+  status: "CHECKED_OUT" | "CANCELLED" | "NON_ARRIVAL" | "CONFIRMED" | "PENDING";
+  createdAt: string; // Tương ứng bookingDate
+  checkInDate?: string;
+  checkOutDate?: string;
+  roomTypeName?: string;
+  quantity: number;
+  numberOfGuests?: number;
+}
+
 const MyTicketsPage: React.FC = () => {
-  const { user } = useAuth(); // Lấy user từ Context
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const [tickets, setTickets] = useState<TicketItem[]>([]);
+  const [tickets, setTickets] = useState<BookingItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Hàm gọi API lấy dữ liệu
   const fetchHistory = async () => {
-    // Nếu chưa đăng nhập thì không gọi API này (vì sẽ lỗi 401)
     if (!user) return;
 
     try {
       setLoading(true);
-      console.log("Đang gọi API: /bookings/my-history");
-
       const res = await BookingApi.getHistory();
-
-      console.log("Dữ liệu trả về:", res);
-
-      // Xử lý dữ liệu trả về theo đúng cấu trúc JSON bạn cung cấp
-      // Cấu trúc: { success: true, data: { content: [...] } }
+      
+      // JSON trả về: { success: true, data: { content: [...] } }
       if (res.success && res.data && Array.isArray(res.data.content)) {
         setTickets(res.data.content);
       } else {
         setTickets([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Lỗi khi tải vé:", error);
-      // Nếu lỗi 401 (Hết hạn token) -> Logout
-      if (error === 401) {
+      if (error === 401 || error.response?.status === 401) {
         navigate("/login");
       }
     } finally {
@@ -58,12 +68,10 @@ const MyTicketsPage: React.FC = () => {
     }
   };
 
-  // Gọi API khi component load hoặc khi user thay đổi
   useEffect(() => {
     fetchHistory();
   }, [user]);
 
-  // Format tiền tệ
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("vi-VN", {
       style: "currency",
@@ -71,8 +79,8 @@ const MyTicketsPage: React.FC = () => {
     }).format(amount);
   };
 
-  // Format ngày giờ
   const formatDate = (dateString: string) => {
+    if (!dateString) return "";
     return new Date(dateString).toLocaleString("vi-VN", {
       hour: "2-digit",
       minute: "2-digit",
@@ -82,17 +90,31 @@ const MyTicketsPage: React.FC = () => {
     });
   };
 
-  // Tạo link QR Code
   const generateQrCodeUrl = (data: string) =>
     `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
       data
     )}&margin=5`;
 
-  // Lọc danh sách hiển thị
+  // Helper function để hiển thị trạng thái đẹp hơn
+  const getStatusDisplay = (status: string) => {
+    switch (status) {
+      case "CONFIRMED":
+        return { text: "ĐÃ ĐẶT", color: "bg-green-100 text-green-700" };
+      case "CHECKED_OUT":
+        return { text: "HOÀN THÀNH", color: "bg-blue-100 text-blue-700" };
+      case "CANCELLED":
+        return { text: "ĐÃ HỦY", color: "bg-red-100 text-red-700" };
+      case "NON_ARRIVAL":
+        return { text: "KHÔNG ĐẾN", color: "bg-gray-100 text-gray-600" };
+      default:
+        return { text: status, color: "bg-yellow-100 text-yellow-700" };
+    }
+  };
+
   const filteredTickets = tickets.filter(
     (t) =>
-      t.showName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.id.toLowerCase().includes(searchQuery.toLowerCase())
+      (t.title && t.title.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (t.id && t.id.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   return (
@@ -103,9 +125,9 @@ const MyTicketsPage: React.FC = () => {
       <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
         <div className="mb-8 border-b pb-4 flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">Vé Của Tôi</h1>
+            <h1 className="text-3xl font-bold text-gray-800">Lịch sử đặt vé</h1>
             <p className="text-gray-500 mt-1">
-              Quản lý và xem lại lịch sử đặt vé của bạn.
+              Quản lý và xem lại lịch sử đặt vé khách sạn & show diễn của bạn.
             </p>
           </div>
           {user && (
@@ -118,7 +140,6 @@ const MyTicketsPage: React.FC = () => {
           )}
         </div>
 
-        {/* --- TRƯỜNG HỢP 1: CHƯA ĐĂNG NHẬP --- */}
         {!user ? (
           <div className="flex flex-col items-center justify-center py-16 bg-white rounded-lg shadow-sm border border-gray-200">
             <div className="bg-orange-100 p-4 rounded-full mb-4">
@@ -128,8 +149,7 @@ const MyTicketsPage: React.FC = () => {
               Bạn chưa đăng nhập
             </h2>
             <p className="text-gray-500 text-center max-w-md mb-6">
-              Để xem lịch sử đặt vé (My History), bạn cần đăng nhập vào tài
-              khoản đã dùng để mua vé.
+              Vui lòng đăng nhập để xem lịch sử đặt vé.
             </p>
             <div className="flex gap-4">
               <Link
@@ -138,21 +158,9 @@ const MyTicketsPage: React.FC = () => {
               >
                 <FaSignInAlt className="mr-2" /> Đăng nhập ngay
               </Link>
-              <Link
-                to="/"
-                className="flex items-center border border-gray-300 px-6 py-2 rounded-lg hover:bg-gray-50 transition text-gray-700 font-medium"
-              >
-                Về trang chủ
-              </Link>
             </div>
-            {/* Gợi ý nếu khách muốn tra cứu mà ko cần login (Cần Backend hỗ trợ API khác) */}
-            <p className="mt-8 text-sm text-gray-400 italic">
-              *Nếu bạn mua vé không cần tài khoản, vui lòng kiểm tra Email để
-              lấy vé.
-            </p>
           </div>
         ) : (
-          /* --- TRƯỜNG HỢP 2: ĐÃ ĐĂNG NHẬP --- */
           <>
             {loading ? (
               <div className="flex justify-center py-20">
@@ -168,105 +176,118 @@ const MyTicketsPage: React.FC = () => {
                   to="/"
                   className="mt-6 inline-block bg-orange-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-orange-600 transition-colors"
                 >
-                  Mua vé ngay
+                  Đặt ngay
                 </Link>
               </div>
             ) : (
               <div className="space-y-6">
-                {/* Thanh tìm kiếm */}
                 <div className="relative max-w-md mb-6">
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Tìm theo tên show hoặc mã đơn..."
+                    placeholder="Tìm theo tên hoặc mã đơn..."
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                   />
                   <FaSearch className="absolute left-3 top-3 text-gray-400" />
                 </div>
 
-                {/* Danh sách vé */}
-                {filteredTickets.map((ticket) => (
-                  <div
-                    key={ticket.id}
-                    className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col md:flex-row hover:shadow-md transition-shadow"
-                  >
-                    {/* Ảnh giả định (Vì API JSON chưa trả về ảnh) */}
-                    <div className="w-full md:w-48 h-48 bg-gray-200 relative flex items-center justify-center text-gray-400">
-                      {/* Nếu sau này API có ảnh, thay src vào đây */}
-                      <FaTicketAlt size={40} />
-                    </div>
+                {filteredTickets.map((ticket) => {
+                  const statusInfo = getStatusDisplay(ticket.status);
+                  
+                  return (
+                    <div
+                      key={ticket.id}
+                      className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col md:flex-row hover:shadow-md transition-shadow"
+                    >
+                      {/* Cột Icon phân loại (HOTEL/SHOW) */}
+                      <div className="w-full md:w-32 bg-gray-100 flex flex-col items-center justify-center text-gray-400 p-4 border-r border-gray-100">
+                        {ticket.type === "HOTEL" ? (
+                          <>
+                            <FaHotel size={32} className="text-blue-500 mb-2" />
+                            <span className="text-xs font-bold text-blue-600">HOTEL</span>
+                          </>
+                        ) : (
+                          <>
+                            <FaMusic size={32} className="text-pink-500 mb-2" />
+                            <span className="text-xs font-bold text-pink-600">SHOW</span>
+                          </>
+                        )}
+                      </div>
 
-                    {/* Thông tin vé */}
-                    <div className="p-5 flex-grow flex flex-col justify-center">
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs font-mono font-bold">
-                            ID: {ticket.id.slice(-6).toUpperCase()}
-                          </span>
-                          <span
-                            className={`px-2 py-1 rounded text-xs font-bold ${ticket.status === "CONFIRMED"
-                              ? "bg-green-100 text-green-700"
-                              : "bg-yellow-100 text-yellow-700"
-                              }`}
-                          >
-                            {ticket.status === "CONFIRMED"
-                              ? "ĐÃ THANH TOÁN"
-                              : "CHỜ XỬ LÝ"}
+                      {/* Thông tin chính */}
+                      <div className="p-5 flex-grow flex flex-col justify-center">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs font-mono font-bold">
+                              #{ticket.id.slice(-6).toUpperCase()}
+                            </span>
+                            <span
+                              className={`px-2 py-1 rounded text-xs font-bold ${statusInfo.color}`}
+                            >
+                              {statusInfo.text}
+                            </span>
+                          </div>
+                          <span className="text-xs text-gray-400">
+                            Ngày đặt: {formatDate(ticket.createdAt)}
                           </span>
                         </div>
-                        <span className="text-xs text-gray-400">
-                          Đặt ngày:{" "}
-                          {new Date(ticket.bookingDate).toLocaleDateString(
-                            "vi-VN"
+
+                        {/* Title (Thay vì showName) */}
+                        <h3 className="text-xl font-bold text-indigo-700 mb-1">
+                          {ticket.title}
+                        </h3>
+
+                        {/* Chi tiết theo loại */}
+                        <div className="text-sm text-gray-600 space-y-2 mb-3 mt-2">
+                          <p className="flex items-center text-gray-700">
+                            <FaCalendarAlt className="mr-2 text-orange-500" />
+                            <span className="font-medium">
+                              {/* Sử dụng eventDate */}
+                              {formatDate(ticket.eventDate)}
+                              {ticket.checkOutDate && ` - ${formatDate(ticket.checkOutDate).split(' ')[1]}`} 
+                            </span>
+                          </p>
+                          <p className="flex items-start">
+                            <FaMapMarkerAlt className="mr-2 text-orange-500 mt-1 flex-shrink-0" />
+                            {/* Sử dụng location */}
+                            <span>{ticket.location}</span>
+                          </p>
+                          
+                          {/* Hiển thị thêm loại phòng nếu là khách sạn */}
+                          {ticket.type === "HOTEL" && ticket.roomTypeName && (
+                             <p className="text-gray-500 italic pl-6">
+                               Loại phòng: {ticket.roomTypeName}
+                             </p>
                           )}
-                        </span>
-                      </div>
-
-                      <h3 className="text-xl font-bold text-indigo-700 mb-1">
-                        {ticket.showName}
-                      </h3>
-
-                      <div className="text-sm text-gray-600 space-y-2 mb-3 mt-2">
-                        <p className="flex items-center text-gray-700">
-                          <FaCalendarAlt className="mr-2 text-orange-500" />
-                          <span className="font-medium">
-                            {formatDate(ticket.showTime)}
-                          </span>
-                        </p>
-                        <p className="flex items-start">
-                          <FaMapMarkerAlt className="mr-2 text-orange-500 mt-1 flex-shrink-0" />
-                          <span>{ticket.address}</span>
-                        </p>
-                      </div>
-
-                      <div className="mt-auto pt-3 border-t flex justify-between items-center">
-                        <span className="text-xs text-gray-500">Tổng tiền</span>
-                        <span className="text-orange-600 font-bold text-lg">
-                          {formatCurrency(ticket.totalAmount)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* QR Code */}
-                    {ticket.status === "CONFIRMED" && (
-                      <div className="p-4 bg-gray-50 border-l flex flex-col items-center justify-center min-w-[150px]">
-                        <div className="bg-white p-1 rounded shadow-sm mb-2">
-                          {/* Dùng Booking ID làm mã QR */}
-                          <img
-                            src={generateQrCodeUrl(ticket.id)}
-                            alt="QR"
-                            className="w-24 h-24"
-                          />
                         </div>
-                        <span className="text-xs text-gray-500">Check-in</span>
-                        <button className="text-xs flex items-center text-blue-600 hover:underline mt-1">
-                          <FaQrcode className="mr-1" /> Phóng to
-                        </button>
+
+                        <div className="mt-auto pt-3 border-t flex justify-between items-center">
+                          <span className="text-xs text-gray-500">
+                            {ticket.quantity} vé/phòng • {ticket.numberOfGuests || 1} khách
+                          </span>
+                          <span className="text-orange-600 font-bold text-lg">
+                            {formatCurrency(ticket.totalAmount)}
+                          </span>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                ))}
+
+                      {/* QR Code (Chỉ hiện khi CONFIRMED hoặc CHECKED_OUT) */}
+                      {(ticket.status === "CONFIRMED" || ticket.status === "CHECKED_OUT") && (
+                        <div className="p-4 bg-gray-50 border-l flex flex-col items-center justify-center min-w-[150px]">
+                          <div className="bg-white p-1 rounded shadow-sm mb-2">
+                            <img
+                              src={generateQrCodeUrl(ticket.id)}
+                              alt="QR"
+                              className="w-24 h-24"
+                            />
+                          </div>
+                          <span className="text-xs text-gray-500">Mã vé</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </>

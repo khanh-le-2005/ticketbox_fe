@@ -1,4 +1,5 @@
-import { Hotel } from "@/types";
+export type { Hotel } from "../types";
+import { Hotel } from "../types";
 
 export interface RoomType {
   code: string;
@@ -24,6 +25,17 @@ export interface ApiHotelResponse {
   galleryImageIds: number[];
   minPrice: number;
   roomTypes?: RoomType[];
+}
+
+export interface CreateHotelRequest {
+  name: string;
+  address: string;
+  description: string;
+  roomTypes?: RoomType[];
+}
+
+export interface UpdateHotelRequest extends Partial<CreateHotelRequest> {
+  id: string;
 }
 
 
@@ -54,6 +66,8 @@ export interface HotelBookingModalProps {
   maxCapacity: number;      // VD: 4
 
   onSuccess?: () => void;
+  initialCheckIn?: string;
+  initialCheckOut?: string;
 }
 
 export interface HotelDetail extends Hotel {

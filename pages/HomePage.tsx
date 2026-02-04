@@ -120,7 +120,7 @@ const HomePage: React.FC = () => {
         setEdmEvents(sorted.slice(8, 12));
         setAcousticEvents(sorted.slice(12, 16));
       } catch (err) {
-        console.error("❌ Lỗi tải trang chủ:", err);
+        // console.error("❌ Lỗi tải trang chủ:", err);
         setErrorMessage("Không thể tải danh sách sự kiện");
       } finally {
         setLoading(false);

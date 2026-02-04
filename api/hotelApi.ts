@@ -33,7 +33,7 @@
 
 // export default hotelApi;
 
-import axiosClient from "./axiosClient"; // Đảm bảo đường dẫn đúng file axiosClient của bạn
+import axiosClient from "./axiosClient"; 
 import {
   ApiResponse,
   Hotel,
@@ -41,7 +41,7 @@ import {
   UpdateHotelRequest,
   AvailabilityResponse,
   CalendarDayItem,
-} from "@/type"; // Đảm bảo đã export đủ các type này trong file type chung
+} from "../type"; // Đảm bảo đã export đủ các type này trong file type chung
 
 // Cấu hình URL gốc để ghép link ảnh
 export const BASE_API_URL = "https://api.momangshow.vn/api";

@@ -6,17 +6,18 @@ export interface ApiResponse<T> {
 
 // Show Booking Types
 export interface CreateShowBookingRequest {
+  requestId: string;
   showId: string;
   customerName: string;
   customerEmail: string;
   customerPhone: string;
   otp: string;
-  requestId?: string;
   tickets: {
     ticketTypeCode: string;
     quantity: number;
   }[];
   channel?: string;
+  notificationChannel?: string;
 }
 
 export interface ShowPaymentResponse {

@@ -258,6 +258,19 @@ const EventDetailPage: React.FC = () => {
               </div>
 
               <div className="prose max-w-none text-gray-700 mb-8">
+                {/* NÚT CUỘN XUỐNG ĐẶT VÉ (HIỆN TRÊN MỌI MÀN HÌNH) */}
+                <div className="mb-6 md:hidden">
+                  <button
+                    onClick={() => {
+                      const el = document.getElementById("map-section");
+                      el?.scrollIntoView({ behavior: "smooth" });
+                    }}
+                    className="flex items-center gap-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-4 py-2 rounded-lg font-bold border border-indigo-200 transition-colors shadow-sm"
+                  >
+                    Xem bảng giá & Đặt vé
+                  </button>
+                </div>
+
                 <h3 className="text-xl font-bold text-gray-900 mb-3 uppercase border-l-4 border-indigo-500 pl-3">
                   Giới thiệu về sự kiện
                 </h3>
@@ -341,7 +354,8 @@ const EventDetailPage: React.FC = () => {
               </div>
 
               {/* 3. BẢN ĐỒ */}
-              <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm mb-6">
+              <div id="map-section"
+              className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm mb-6">
                 <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2 uppercase">
                   <span className="text-orange-500"><FaMapMarkerAlt size={18} /></span>
                   Bản đồ địa điểm
@@ -398,12 +412,14 @@ const EventDetailPage: React.FC = () => {
               </div>
 
               {/* 4. NÚT MUA VÉ */}
-              <button
-                onClick={() => setIsBookingModalOpen(true)}
-                className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 rounded-lg shadow-lg transform transition hover:scale-105 flex justify-center items-center text-lg "
-              >
-                Mua vé ngay
-              </button>
+              <div id="booking-section">
+                <button
+                  onClick={() => setIsBookingModalOpen(true)}
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 rounded-lg shadow-lg transform transition hover:scale-105 flex justify-center items-center text-lg "
+                >
+                  Mua vé ngay
+                </button>
+              </div>
             </div>
           </div>
         </div>

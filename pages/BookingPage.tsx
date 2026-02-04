@@ -41,7 +41,7 @@ const BookingPage: React.FC = () => {
     setIsLoading(true);
     try {
       const res: any = await hotelApi.getAll({ page: 0, size: 20 });
-      
+
       let hotelList: ApiHotelResponse[] = [];
       if (res?.data?.content) {
         hotelList = res.data.content;
@@ -64,15 +64,15 @@ const BookingPage: React.FC = () => {
   const handleSearch = async () => {
     // Nếu không nhập gì cả -> Gọi lại Default
     if (!keyword.trim() && (!checkInDate || !checkOutDate)) {
-        fetchDefaultHotels();
-        return;
+      fetchDefaultHotels();
+      return;
     }
 
     setIsLoading(true);
     try {
       const params: any = {};
       if (keyword.trim()) params.q = keyword.trim();
-      
+
       if (checkInDate && checkOutDate) {
         if (new Date(checkOutDate) <= new Date(checkInDate)) {
           setToastError("Ngày trả phòng phải sau ngày nhận phòng.");
@@ -85,9 +85,9 @@ const BookingPage: React.FC = () => {
 
       // Gọi API Search
       const res: any = await hotelApi.search(params);
-      
+
       let hotelList: ApiHotelResponse[] = [];
-      
+
       // Xử lý các cấu trúc response khác nhau
       if (res?.success && Array.isArray(res.data)) {
         hotelList = res.data;
@@ -126,14 +126,12 @@ const BookingPage: React.FC = () => {
   return (
     <div className="bg-gray-50 min-h-screen relative">
       <Header />
-
       <div className="hidden lg:block">
         <Navbar />
       </div>
       <ErrorToast message={toastError} isVisible={!!toastError} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
         {/* --- THANH TÌM KIẾM --- */}
         <div className="bg-white p-4 md:p-6 rounded-xl shadow-lg mb-8 border border-gray-100">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4 md:mb-6 flex items-center">
@@ -151,7 +149,7 @@ const BookingPage: React.FC = () => {
                 <input
                   type="text"
                   placeholder="VD: Đà Nẵng, Hilton..."
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none transition-all"
+                  className="w-full pl-10 pr-4 h-[50px] border border-gray-300 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none transition-all"
                   value={keyword}
                   onChange={(e) => setKeyword(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -159,7 +157,7 @@ const BookingPage: React.FC = () => {
               </div>
             </div>
 
-            {/* 2. Ngày nhận */}
+            {/* 2. Ngày nhận - Đã Fix lỗi MacBook */}
             <div className="md:col-span-3 relative">
               <label className="block text-xs font-bold text-gray-500 mb-1 ml-1">Nhận phòng</label>
               <div className="relative">
@@ -169,14 +167,16 @@ const BookingPage: React.FC = () => {
                 <input
                   type="date"
                   min={getToday()}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none transition-all text-sm"
+                  className="w-full pl-10 pr-4 h-[50px] border border-gray-300 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none transition-all text-sm flex items-center"
+                  style={{ WebkitAppearance: 'none', display: 'flex', alignItems: 'center' }}
                   value={checkInDate}
                   onChange={(e) => setCheckInDate(e.target.value)}
+                  onClick={(e) => (e.target as any).showPicker?.()}
                 />
               </div>
             </div>
 
-            {/* 3. Ngày trả */}
+            {/* 3. Ngày trả - Đã Fix lỗi MacBook */}
             <div className="md:col-span-3 relative">
               <label className="block text-xs font-bold text-gray-500 mb-1 ml-1">Trả phòng</label>
               <div className="relative">
@@ -186,9 +186,11 @@ const BookingPage: React.FC = () => {
                 <input
                   type="date"
                   min={checkInDate || getToday()}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none transition-all text-sm"
+                  className="w-full pl-10 pr-4 h-[50px] border border-gray-300 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-orange-500 outline-none transition-all text-sm flex items-center"
+                  style={{ WebkitAppearance: 'none', display: 'flex', alignItems: 'center' }}
                   value={checkOutDate}
                   onChange={(e) => setCheckOutDate(e.target.value)}
+                  onClick={(e) => (e.target as any).showPicker?.()}
                 />
               </div>
             </div>
@@ -223,21 +225,17 @@ const BookingPage: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
               {hotels.map((hotel) => {
                 const totalRooms = calculateTotalRooms(hotel.roomTypes || []);
-                
-                // 👇 --- SỬA LỖI GIÁ 0Đ Ở ĐÂY ---
+
                 let startPrice = 0;
                 if (hotel.minPrice && hotel.minPrice > 0) {
-                    startPrice = hotel.minPrice;
+                  startPrice = hotel.minPrice;
                 } else if (hotel.roomTypes && hotel.roomTypes.length > 0) {
-                    // Lọc lấy giá nhỏ nhất từ các loại phòng
-                    const prices = hotel.roomTypes
-                        .map((rt: any) => rt.price || rt.priceMonToThu || rt.priceWeekday || 0)
-                        .filter((p: number) => p > 0);
-                    if (prices.length > 0) startPrice = Math.min(...prices);
+                  const prices = hotel.roomTypes
+                    .map((rt: any) => rt.price || rt.priceMonToThu || rt.priceWeekday || 0)
+                    .filter((p: number) => p > 0);
+                  if (prices.length > 0) startPrice = Math.min(...prices);
                 }
-                // 👆 ----------------------------
 
-                // Logic hiển thị "Còn x phòng" khi search theo ngày
                 const availableRoomCount = hotel.roomTypes?.reduce((acc, rt: any) => acc + (rt.availableRooms ?? rt.totalRooms), 0);
                 const isCheckDateMode = checkInDate && checkOutDate;
 
@@ -255,19 +253,17 @@ const BookingPage: React.FC = () => {
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                       />
                       <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center">
-                        <FaBed className="mr-1.5 text-orange-400" /> 
-                        {isCheckDateMode && availableRoomCount !== undefined 
-                          ? `Còn ${availableRoomCount} phòng` 
+                        <FaBed className="mr-1.5 text-orange-400" />
+                        {isCheckDateMode && availableRoomCount !== undefined
+                          ? `Còn ${availableRoomCount} phòng`
                           : `${totalRooms} phòng`}
                       </div>
                     </div>
 
                     <div className="p-5 flex-1 flex flex-col">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="text-xl font-bold text-gray-800 line-clamp-1 group-hover:text-orange-600 transition-colors">
-                          {hotel.name}
-                        </h3>
-                      </div>
+                      <h3 className="text-xl font-bold text-gray-800 line-clamp-1 group-hover:text-orange-600 transition-colors mb-2">
+                        {hotel.name}
+                      </h3>
 
                       <div className="flex items-center text-gray-500 text-sm mb-3">
                         <FaMapMarkerAlt className="mr-1.5 text-orange-500 flex-shrink-0" />

@@ -217,50 +217,50 @@
 
 // src/components/Header.tsx
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-    FaSearch, FaUser, FaAngleDown, FaSignOutAlt,
-    FaMapMarkerAlt, FaTicketAlt, FaBars, FaTimes,
+    FaUser, FaAngleDown, FaSignOutAlt,
+    FaTicketAlt, FaBars, FaTimes,
     FaHome, FaMusic, FaHotel, FaNewspaper
 } from 'react-icons/fa';
 import { useAuth } from '../hooks/useAuth';
 import SearchBar from './SearchBar';
 
-const locations = ['Toàn quốc', 'Hà Nội', 'Hồ Chí Minh', 'Hải Phòng', 'Đà Nẵng', 'Cần Thơ'];
-
 const Header: React.FC = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const [isLocationOpen, setIsLocationOpen] = useState(false);
-    const [selectedLocation, setSelectedLocation] = useState('Chọn địa điểm');
 
-    const mobileLocationRef = useRef<HTMLDivElement>(null);
-    const desktopLocationRef = useRef<HTMLDivElement>(null);
+    // --- ĐÃ ẨN LOGIC LOCATION ---
+    // const [isLocationOpen, setIsLocationOpen] = useState(false);
+    // const [selectedLocation, setSelectedLocation] = useState('Chọn địa điểm');
+    // const mobileLocationRef = useRef<HTMLDivElement>(null);
+    // const desktopLocationRef = useRef<HTMLDivElement>(null);
+    // const locations = ['Toàn quốc', 'Hà Nội', 'Hồ Chí Minh', 'Hải Phòng', 'Đà Nẵng', 'Cần Thơ'];
 
     const handleLogout = () => {
         logout();
         navigate('/');
     };
 
-    // Close dropdowns when clicking outside
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            const target = event.target as Node;
-            if (mobileLocationRef.current && !mobileLocationRef.current.contains(target) && 
-                desktopLocationRef.current && !desktopLocationRef.current.contains(target)) {
-                setIsLocationOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+    // --- ĐÃ ẨN USE EFFECT CLICK OUTSIDE VÌ KHÔNG CÒN DROPDOWN LOCATION ---
+    // useEffect(() => {
+    //     const handleClickOutside = (event: MouseEvent) => {
+    //         const target = event.target as Node;
+    //         if (mobileLocationRef.current && !mobileLocationRef.current.contains(target) && 
+    //             desktopLocationRef.current && !desktopLocationRef.current.contains(target)) {
+    //             setIsLocationOpen(false);
+    //         }
+    //     };
+    //     document.addEventListener('mousedown', handleClickOutside);
+    //     return () => document.removeEventListener('mousedown', handleClickOutside);
+    // }, []);
 
-    const handleLocationSelect = (location: string) => {
-        setSelectedLocation(location);
-        setIsLocationOpen(false);
-    }
+    // const handleLocationSelect = (location: string) => {
+    //     setSelectedLocation(location);
+    //     setIsLocationOpen(false);
+    // }
 
     return (
         <>
@@ -281,15 +281,16 @@ const Header: React.FC = () => {
                         </Link>
                     </div>
 
-                    {/* --- 2. DESKTOP CENTER (SEARCH + LOCATION) - Hiện từ màn hình LG trở lên --- */}
+                    {/* --- 2. DESKTOP CENTER (SEARCH ONLY) --- */}
                     <div className="hidden lg:flex flex-1 items-center justify-center px-8 gap-4">
                         {/* Search Bar */}
                         <div className="flex-grow max-w-xl relative z-50">
                             <SearchBar />
                         </div>
 
-                        {/* Location Dropdown */}
-                        <div className="relative flex-shrink-0" ref={desktopLocationRef}>
+                        {/* --- ĐÃ ẨN LOCATION DROPDOWN (DESKTOP) --- */}
+                        {/* 
+                        <div className="relative" ref={desktopLocationRef}>
                             <button 
                                 onClick={() => setIsLocationOpen(!isLocationOpen)} 
                                 className="flex items-center justify-between w-40 xl:w-48 px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 bg-white hover:bg-gray-50 focus:ring-2 focus:ring-orange-500 transition-all"
@@ -314,15 +315,16 @@ const Header: React.FC = () => {
                                     ))}
                                 </div>
                             )}
-                        </div>
+                        </div> 
+                        */}
                     </div>
 
-                    {/* --- 3. DESKTOP RIGHT (USER ACTIONS) - Hiện từ màn hình LG trở lên --- */}
+                    {/* --- 3. DESKTOP RIGHT (USER ACTIONS) --- */}
                     <div className="hidden lg:flex items-center gap-4">
                         <Link to="/my-tickets" className="text-sm font-semibold text-gray-600 hover:text-orange-600 flex items-center gap-2 transition-colors whitespace-nowrap">
                             <FaTicketAlt /> Tra cứu đơn hàng
                         </Link>
-                        
+
                         <div className="h-6 w-px bg-gray-300"></div>
 
                         {user ? (
@@ -349,7 +351,7 @@ const Header: React.FC = () => {
                         )}
                     </div>
 
-                    {/* --- 4. MOBILE TOGGLE BUTTON - Chỉ hiện dưới màn hình LG --- */}
+                    {/* --- 4. MOBILE TOGGLE BUTTON --- */}
                     <button
                         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                         className="lg:hidden p-2 -mr-2 text-gray-600 hover:text-orange-600 hover:bg-gray-100 rounded-lg transition-colors"
@@ -361,7 +363,7 @@ const Header: React.FC = () => {
                 {/* --- 5. MOBILE MENU DROPDOWN --- */}
                 {isMobileMenuOpen && (
                     <div className="lg:hidden absolute top-[64px] left-0 right-0 bg-white border-b border-gray-200 shadow-2xl px-4 py-4 flex flex-col gap-4 animate-slideDown max-h-[80vh] overflow-y-auto">
-                        
+
                         {/* Search Mobile */}
                         <div className="w-full">
                             <SearchBar />
@@ -383,7 +385,8 @@ const Header: React.FC = () => {
                             </Link>
                         </div>
 
-                        {/* Location Mobile */}
+                        {/* --- ĐÃ ẨN LOCATION MOBILE --- */}
+                        {/* 
                         <div className="relative" ref={mobileLocationRef}>
                             <button
                                 onClick={() => setIsLocationOpen(!isLocationOpen)}
@@ -408,14 +411,15 @@ const Header: React.FC = () => {
                                     ))}
                                 </div>
                             )}
-                        </div>
+                        </div> 
+                        */}
 
                         <hr className="border-gray-100" />
 
                         {/* User Actions Mobile */}
                         <div className="flex flex-col gap-3">
                             <Link to="/my-tickets" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center justify-center gap-2 w-full py-3 bg-gray-100 text-gray-700 rounded-lg font-bold hover:bg-gray-200">
-                                <FaTicketAlt /> Vé của tôi
+                                <FaTicketAlt /> Lịch sử mua hàng
                             </Link>
 
                             {user ? (
@@ -438,6 +442,6 @@ const Header: React.FC = () => {
             </header>
         </>
     );
-};  
+};
 
 export default Header;

@@ -1,16 +1,11 @@
 import axiosClient from './axiosClient';
-import { Banner } from '@/type/indext';
+import { Banner } from '@/type/index';
 
-const ENDPOINT = '/admin/banners';
+const ENDPOINT = 'admin/banners';
 
 // =================================================================
 // 1. CÁC HÀM GỌI API (ADMIN)
 // =================================================================
-
-/**
- * Lấy danh sách tất cả Banners
- * GET /api/admin/banners
- */
 export const getAllBanners = async (): Promise<Banner[]> => {
   try {
     return await axiosClient.get(ENDPOINT);
@@ -79,13 +74,10 @@ export const deleteBanner = async (id: string): Promise<void> => {
 // 2. CÁC HÀM GỌI API (PUBLIC)
 // =================================================================
 
-/**
- * Lấy danh sách Banners đang hoạt động theo Menu
- * GET /api/admin/banners/byMenu?menu={menu}
- */
+
 export const getActiveBannersByMenu = async (menu: string): Promise<Banner[]> => {
   try {
-    return await axiosClient.get(`${ENDPOINT}/byMenu`, {
+    return await axiosClient.get(`${ENDPOINT}/active-all`, {
       params: { menu }
     });
   } catch (error) {

@@ -1,9 +1,9 @@
 export interface ContactData {
-    name: string;
-    email: string | null;
-    phone: string;
+    customerName: string;
+    customerEmail: string | null;
+    customerPhone: string;
     otp: string;
-    notificationChannel: 'EMAIL' | 'ZALO';
+    channel: string
 }
 
 export interface Props {

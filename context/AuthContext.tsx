@@ -60,21 +60,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Gọi API Login
       const response: any = await authApi.login({ identifier, password: pass });
 
-      // Xử lý dữ liệu trả về từ Backend
-      // Cấu trúc mong đợi: { data: { token: "...", role: "...", ... } }
-      // (Lưu ý: axiosClient có thể đã unwrap 1 lớp data rồi)
-      const data = response.data || response;
+      // Cấu trúc: { success: true, data: { access_token: "...", ... } }
+      const data = response?.data || response;
+      const token = data?.accessToken || data?.token || data?.access_token || response?.accessToken || response?.token || response?.access_token;
 
-      if (data && data.token) {
+      if (token) {
         // Lưu Token quan trọng nhất
-        localStorage.setItem('jwtToken', data.token);
+        localStorage.setItem('jwtToken', token);
 
         // Tạo object User để lưu state
         const userData: User = {
-          username: data.username,
-          email: data.email,
-          role: data.role,
-          fullName: data.fullName
+          username: data?.username || response?.username || "",
+          email: data?.email || response?.email || "",
+          role: data?.role || response?.role || "USER",
+          fullName: data?.fullName || response?.fullName || ""
         };
 
         // Lưu thông tin user để F5 không mất
