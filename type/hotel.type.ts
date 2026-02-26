@@ -15,6 +15,7 @@ export interface RoomType {
   priceSunday?: number;
   surchargeSunToThu?: number;
   surchargeFriSat?: number;
+  currentPrice?: number;
 }
 
 export interface ApiHotelResponse {
@@ -24,7 +25,37 @@ export interface ApiHotelResponse {
   description: string;
   galleryImageIds: number[];
   minPrice: number;
+  maxPrice?: number;
+  totalRoomTypes?: number;
   roomTypes?: RoomType[];
+  slug?: string;
+}
+
+export interface CalculatePriceRequest {
+  hotelId: string;
+  roomTypeCode: string;
+  roomType?: string;
+  checkIn: string;
+  checkOut: string;
+  checkInDate?: string;
+  checkOutDate?: string;
+  quantity: number;
+  numberOfGuests: number;
+}
+
+export interface DailyBreakdown {
+  date: string;
+  price: number;
+  surcharge: number;
+  note: string;
+}
+
+export interface CalculatePriceResponse {
+  currentPrice: number;
+  totalPrice?: number;
+  basePrice: number;
+  surchargeTotal: number;
+  dailyBreakdown: DailyBreakdown[];
 }
 
 export interface CreateHotelRequest {
@@ -52,6 +83,7 @@ export interface RoomPriceConfig {
   priceSunday: number;
   surchargeSunToThu: number;
   surchargeFriSat: number;
+  currentPrice?: number;
 }
 
 export interface HotelBookingModalProps {

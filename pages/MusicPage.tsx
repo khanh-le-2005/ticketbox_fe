@@ -1,9 +1,8 @@
 // src/pages/MusicPage.tsx
 
 import React, { useState, useEffect } from "react";
-import axios from "axios"; 
+import axios from "axios";
 import Header from "../components/Header";
-import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import EventCard from "../components/EventCard";
 import FloatButton from "@/components/FloatButton";
@@ -117,10 +116,6 @@ const MusicPage: React.FC = () => {
     <div className="bg-gray-50 min-h-screen relative">
       <Header />
 
-      {/* 👇 SỬA ĐOẠN NÀY: Ẩn Navbar trên mobile để không bị trùng 2 menu */}
-      <div className="hidden md:block">
-        <Navbar />
-      </div>
       <main className="flex-grow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Banner */}

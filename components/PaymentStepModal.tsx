@@ -23,20 +23,15 @@ const PaymentStepModal: React.FC<PaymentStepModalProps> = ({
 }) => {
   const pollingInterval = useRef<NodeJS.Timeout | null>(null);
   const [isCopying, setIsCopying] = useState(false);
+  const [currentStatusText, setCurrentStatusText] = useState("Đang kết nối..."); // Debug UI
   const handledRef = useRef(false);
-
+  console.log("paymentData", paymentData);
   useEffect(() => {
-    const rawId =
-      paymentData?.transaction_id ||
-      paymentData?.bookingId ||
-      paymentData?.id ||
-      paymentData?.payment_content ||
-      paymentData?.orderCode;
 
-    if (!isOpen || !rawId) return;
+    if (!isOpen || !paymentData.user_id) return;
 
     handledRef.current = false;
-    const idString = String(rawId);
+    const idString = String(paymentData.user_id);
 
     const intervalId = setInterval(async () => {
       try {
@@ -48,11 +43,16 @@ const PaymentStepModal: React.FC<PaymentStepModalProps> = ({
         } else {
           res = await BookingApi.checkStatus(idString);
         }
-
         const data = res?.data || res;
-        const status = String(data?.status || "").toUpperCase();
-        const msg = String(data?.message || "").toLowerCase();
 
+        const status = String(data?.status || "").toUpperCase();
+        const msg = String(res?.message ?? data?.message ?? "").toLowerCase();
+        // console.log("data", data);
+
+        // Update UI debug text
+        setCurrentStatusText(`${status} (${msg})`);
+
+        // console.log(`PaymentStepModal: Polling ${idString} -> Status: ${status}, isPaid: ${data?.isPaid ?? res?.isPaid}, message: ${msg}`, res);
         if (
           data?.isPaid ||
           ["PAID", "SUCCESS", "CONFIRMED", "COMPLETED"].includes(status) ||
@@ -66,13 +66,15 @@ const PaymentStepModal: React.FC<PaymentStepModalProps> = ({
           clearInterval(intervalId);
           onPaymentSuccess();
         }
-      } catch (err) {
-        console.error("Polling error:", err);
+      } catch (err: any) {
+        console.error("Polling error for", idString, ":", err);
+        setCurrentStatusText(`Lỗi kết nối: ${err.message || "Unknown"}`);
       }
     }, 3000);
 
     return () => clearInterval(intervalId);
   }, [isOpen, paymentData, onPaymentSuccess]);
+  // console.log("paymentData", paymentData);
 
 
 
@@ -253,7 +255,10 @@ const PaymentStepModal: React.FC<PaymentStepModalProps> = ({
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
             </span>
-            <span className="text-sm font-medium text-indigo-700">Hệ thống đang kiểm tra giao dịch...</span>
+            <span className="text-sm font-medium text-indigo-700">
+              Hệ thống đang kiểm tra... <br />
+              <span className="text-xs text-indigo-500 font-normal">Trạng thái: {currentStatusText}</span>
+            </span>
           </div>
 
         </div>
@@ -270,4 +275,3 @@ const PaymentStepModal: React.FC<PaymentStepModalProps> = ({
 };
 
 export default PaymentStepModal;
-

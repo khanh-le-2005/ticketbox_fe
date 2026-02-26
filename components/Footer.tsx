@@ -9,12 +9,12 @@ const Footer: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                     <div>
                         <h3 className="text-xl font-bold text-indigo-400">
-                            Mơ màng <span className="text-orange-400">Show</span>
+                            MƠ MÀNG <span className="text-orange-400">SHOW</span>
                         </h3>
-                        <p className="text-sm text-gray-400 mt-2">Giai điệu bồng bềnh, tìm Mơ màng Show . Nền tảng đặt vé sự kiện, tour du lịch, và vé tham quan hàng đầu Việt Nam.</p>
+                        <p className="text-sm text-gray-400 mt-2">Giai điệu bồng bềnh, tìm MƠ MÀNG SHOW. Nền tảng đặt vé sự kiện, tour du lịch, và vé tham quan hàng đầu Việt Nam.</p>
                     </div>
                     <div>
-                        <h4 className="font-semibold text-lg mb-4">Về Mơ màng Show </h4>
+                        <h4 className="font-semibold text-lg mb-4">Về MƠ MÀNG SHOW </h4>
                         <ul className="space-y-2 text-sm">
                             <li><a href="#" className="text-gray-400 hover:text-white">Về chúng tôi</a></li>
                             <li><a href="#" className="text-gray-400 hover:text-white">Điều khoản sử dụng</a></li>

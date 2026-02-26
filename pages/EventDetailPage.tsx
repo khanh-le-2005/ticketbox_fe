@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Header from "../components/Header";
-import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import BookingModal from "../components/BookingModal";
 import {
@@ -190,11 +189,6 @@ const EventDetailPage: React.FC = () => {
     <div className="bg-gray-50 min-h-screen relative">
       <Header />
 
-      {/* 👇 SỬA ĐOẠN NÀY: Ẩn Navbar trên mobile để không bị trùng 2 menu */}
-      <div className="hidden lg:block">
-        <Navbar />
-      </div>
-
       <main className="flex-grow">
         {/* --- BANNER (CLICK ĐỂ MỞ LIGHTBOX) --- */}
         <div
@@ -355,7 +349,7 @@ const EventDetailPage: React.FC = () => {
 
               {/* 3. BẢN ĐỒ */}
               <div id="map-section"
-              className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm mb-6">
+                className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm mb-6">
                 <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2 uppercase">
                   <span className="text-orange-500"><FaMapMarkerAlt size={18} /></span>
                   Bản đồ địa điểm

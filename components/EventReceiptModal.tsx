@@ -11,16 +11,47 @@ interface EventReceiptModalProps {
 const EventReceiptModal: React.FC<EventReceiptModalProps> = ({ isOpen, onClose, details }) => {
     const navigate = useNavigate();
 
+    // DEBUG LOG
+    React.useEffect(() => {
+        if (isOpen) {
+            console.log("EventReceiptModal MOUNTED with details:", details);
+        }
+    }, [isOpen, details]);
+
     if (!isOpen) return null;
 
-    // 1️⃣ LOGIC LẤY ID: Ưu tiên mã đơn hàng (orderCode) -> bookingId -> id -> Bỏ qua user_id
-    const finalBookingId = details?.orderCode || details?.bookingId || details?.id || 'UNKNOWN';
+    // 1️⃣ LOGIC LẤY ID: Check cả trong nested data và root level
+    const p = details?.data || details || {};
+    const finalBookingId =
+        details?.orderCode ||
+        p?.orderCode ||
+        details?.bookingId ||
+        p?.bookingId ||
+        details?.transaction_id ||
+        p?.transaction_id ||
+        details?.payment_content ||
+        p?.payment_content ||
+        details?.id ||
+        p?.id ||
+        details?.requestId ||
+        'UNKNOWN';
 
-    // 2️⃣ LOGIC LẤY GIÁ: Check cả amount và totalPrice
-    const finalAmount = details?.amount || details?.totalPrice || 0;
+    // 2️⃣ LOGIC LẤY GIÁ: Check cả trong nested data và root level
+    const finalAmount =
+        details?.amount ||
+        p?.amount ||
+        details?.totalPrice ||
+        p?.totalPrice ||
+        details?.totalAmount ||
+        p?.totalAmount ||
+        0;
 
-    // 3️⃣ LOGIC CHECK KÊNH GỬI: Kiểm tra kỹ các trường có thể đánh dấu là Zalo
-    const isZalo = details?.channel === 'ZALO' || details?.notificationChannel === 'ZALO';
+    // 3️⃣ LOGIC CHECK KÊNH GỬI: Kiểm tra kỹ các trường có thể đánh dấu là Zalo (check cả nested data)
+    const isZalo =
+        details?.channel === 'ZALO' ||
+        p?.channel === 'ZALO' ||
+        details?.notificationChannel === 'ZALO' ||
+        p?.notificationChannel === 'ZALO';
 
     const handleFinish = () => {
         onClose();
@@ -28,8 +59,10 @@ const EventReceiptModal: React.FC<EventReceiptModalProps> = ({ isOpen, onClose, 
     };
 
     return (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-60 p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden relative animate-in fade-in zoom-in duration-300">
+        // Tăng z-index lên cao nhất có thể để đảm bảo đè lên mọi thứ khác
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black bg-opacity-60 p-4 backdrop-blur-sm">
+            {/* Loại bỏ animation để tránh lỗi ẩn component nếu plugin chưa load */}
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden relative">
 
                 {/* Header Xanh lá báo thành công */}
                 <div className="bg-green-600 px-6 py-8 text-center">
@@ -37,7 +70,7 @@ const EventReceiptModal: React.FC<EventReceiptModalProps> = ({ isOpen, onClose, 
                         <FaCheckCircle className="text-green-600 text-5xl" />
                     </div>
                     <h3 className="text-2xl font-bold text-white uppercase tracking-wider">THANH TOÁN THÀNH CÔNG!</h3>
-                    
+
                     {/* Hiển thị đúng kênh gửi */}
                     <p className="text-green-100 mt-2 font-medium">
                         Vé điện tử đã được gửi tới <span className="font-bold underline">{isZalo ? 'Zalo' : 'Email'}</span> của bạn
@@ -68,7 +101,7 @@ const EventReceiptModal: React.FC<EventReceiptModalProps> = ({ isOpen, onClose, 
                         <div>
                             <h4 className="font-bold text-indigo-900 text-sm uppercase">HƯỚNG DẪN SỬ DỤNG</h4>
                             <p className="text-sm text-indigo-700 mt-1 leading-relaxed">
-                                Vui lòng kiểm tra <b>{isZalo ? 'tin nhắn Zalo (ZNS)' : 'hộp thư Email'}</b> để nhận vé và mã QR. 
+                                Vui lòng kiểm tra <b>{isZalo ? 'tin nhắn Zalo (ZNS)' : 'hộp thư Email'}</b> để nhận vé và mã QR.
                                 Khi đến sự kiện, hãy xuất trình mã QR này tại cổng soát vé.
                             </p>
                         </div>

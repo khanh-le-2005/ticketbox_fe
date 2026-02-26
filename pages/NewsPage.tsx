@@ -2,7 +2,6 @@
 
 import React from "react";
 import Header from "../components/Header";
-import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { NewsSection } from "../components/NewsSection";
 import FloatButton from "@/components/FloatButton";
@@ -16,35 +15,34 @@ const NewsPage: React.FC = () => {
     //   <Navbar />
     <div className="bg-gray-50 min-h-screen relative">
       <Header />
-      <div className="hidden md:block">
-        <Navbar />
-      </div>
 
       <main className="flex-grow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Banner Tin Tức */}
-          <div className="bg-white p-6 rounded-lg shadow-lg mb-12 relative overflow-hidden h-[300px]">
-            {/* Ảnh nền mờ để tạo hiệu ứng đẹp */}
-            <div
-              className="absolute inset-0 bg-cover bg-center opacity-90 h-auto"
-              style={{
-                backgroundImage:
-                  "url('https://i.postimg.cc/BvF17TSK/Beauty-Plus-IMAGE-ENHANCER-1768450444635.png')",
-              }}
-            ></div>
-            <div className="absolute inset-0 bg-gradient-to-r from-black/80 to-transparent"></div>
+          <div className="relative bg-white rounded-lg shadow-lg mb-12 overflow-hidden h-[320px]">
 
-            <div className="relative z-10 p-4 md:p-8 max-w-3xl">
-              <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2 drop-shadow-md">
+            {/* Ảnh nền */}
+            <img
+              src="https://i.postimg.cc/VkGFMjGD/z7523302662966-4ce0aafcde1f5be1619c4d50e4d97087.jpg"
+              alt="Banner Tin Tức"
+              className="absolute inset-0 w-full h-full object-cover object-center"
+            />
+
+            {/* Overlay tối */}
+            <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent"></div>
+
+            {/* Content */}
+            <div className="relative z-10 p-6 md:p-10 max-w-3xl">
+              <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">
                 Tin Tức & Sự Kiện
               </h1>
-              <p className="text-gray-200 text-lg drop-shadow-sm">
+              <p className="text-gray-200 text-lg">
                 Cập nhật những thông tin nóng hổi nhất về thế giới giải trí và
                 các hoạt động của công ty.
               </p>
             </div>
-          </div>
 
+          </div>
           {/* Nhúng NewsSection */}
           <section>
             <NewsSection />

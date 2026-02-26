@@ -47,7 +47,7 @@ const EventCard: React.FC<EventCardProps> = ({ event, className = '', imageClass
 
   return (
     <Link
-      to={`/event/${event.id}`}
+      to={`/event/${event.slug || event.id}`}
       className={`bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col h-full group ${className}`}
     >
       {/* 1. PHẦN ẢNH: Cố định chiều cao, cắt ảnh gọn gàng */}
@@ -78,12 +78,12 @@ const EventCard: React.FC<EventCardProps> = ({ event, className = '', imageClass
         {/* Thông tin phụ (View & Location) */}
         <div className="text-xs text-gray-500 flex items-center justify-between mb-3 border-b border-gray-100 pb-2">
           <div className="flex items-center gap-3 w-full">
-            <div className="flex items-center" title="Lượt xem">
-              <FaEye className="mr-1 text-gray-400" />
+            <div className="flex items-center text-gray-400" title="Lượt xem">
+              <span className="mr-1"><FaEye /></span>
               <span>{event.views ? event.views.toLocaleString('vi-VN') : 0}</span>
             </div>
-            <div className="flex items-center flex-1 min-w-0" title={event.location}>
-              <FaMapMarkerAlt className="mr-1 text-gray-400 flex-shrink-0" />
+            <div className="flex items-center flex-1 min-w-0 text-gray-400" title={event.location}>
+              <span className="mr-1 flex-shrink-0"><FaMapMarkerAlt /></span>
               <span className="truncate">{event.location}</span>
             </div>
           </div>
@@ -92,7 +92,7 @@ const EventCard: React.FC<EventCardProps> = ({ event, className = '', imageClass
         {/* Giá vé (Đẩy xuống đáy) */}
         <div className="mt-auto flex justify-between items-center bg-gray-50 rounded-lg p-1">
           <div className="font-bold text-orange-600 text-[13px] flex items-center px-2 py-1">
-            <FaTicketAlt className="mr-1.5 text-xs opacity-70" />
+            <span className="opacity-70 mr-1.5 text-xs"><FaTicketAlt /></span>
             {event.formattedPrice || event.price}
           </div>
           <div className="bg-orange-500 text-white text-[11px] font-bold px-3 py-1.5 rounded-md shadow-sm group-hover:bg-orange-600 transition-colors">

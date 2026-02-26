@@ -58,7 +58,7 @@ const BookingSuccessModal: React.FC<BookingSuccessModalProps> = ({ isOpen, onFin
                         <div className="border-t border-gray-200 pt-4">
                             <p className="text-sm text-gray-600 leading-relaxed">
                                 <span className="notranslate" translate="no">
-                                    Thông tin chi tiết về đặt phòng đã được gửi đến email của quý khách.
+                                    Thông tin chi tiết về đặt phòng đã được gửi đến email, Zalo của quý khách.
                                     Vui lòng kiểm tra hộp thư để xem chi tiết.
                                 </span>
                             </p>

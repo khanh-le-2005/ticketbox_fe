@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from 'react-router-dom';
 import hotelApi from "../api/hotelApi";
 import Header from "../components/Header";
-import Navbar from "../components/Navbar";
+// import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import ErrorToast from "../components/ErrorToast";
 import {
@@ -25,6 +25,8 @@ const BookingPage: React.FC = () => {
   const [hotels, setHotels] = useState<ApiHotelResponse[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [toastError, setToastError] = useState("");
+  // Giá theo ngày: key = hotelId_checkInDate
+  const [priceMap, setPriceMap] = useState<Record<string, number>>({});
 
   // --- SEARCH STATE ---
   const [keyword, setKeyword] = useState("");
@@ -35,6 +37,15 @@ const BookingPage: React.FC = () => {
 
   // Helper: Lấy ngày hôm nay YYYY-MM-DD
   const getToday = () => new Date().toISOString().split('T')[0];
+
+  // Helper: Format tiền tệ
+  const formatCurrency = (amount: number | undefined | null) => {
+    const safeAmount = Number(amount) || 0;
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(safeAmount);
+  };
 
   // --- 1. HÀM TẢI DANH SÁCH MẶC ĐỊNH (GET ALL) ---
   const fetchDefaultHotels = async () => {
@@ -57,6 +68,27 @@ const BookingPage: React.FC = () => {
       setToastError("Không thể tải danh sách khách sạn.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchHotelPriceByDate = async (
+    hotelId: string,
+    roomTypeCode: string,
+    date: string
+  ) => {
+    try {
+      const res: any = await hotelApi.getRoomPrice(hotelId, roomTypeCode, date);
+      // axiosClient trả về response.data, nên res lúc này là ApiResponse
+      const data = res?.data;
+
+      if (data?.price && typeof data.price === "number") {
+        setPriceMap((prev) => ({
+          ...prev,
+          [`${hotelId}_${date}`]: data.price,
+        }));
+      }
+    } catch (err) {
+      console.warn("Không lấy được giá theo ngày:", hotelId, err);
     }
   };
 
@@ -114,10 +146,37 @@ const BookingPage: React.FC = () => {
   useEffect(() => {
     fetchDefaultHotels();
   }, []);
+  useEffect(() => {
+    if (!checkInDate || hotels.length === 0) return;
 
-  const handleViewDetail = (hotelId: string) => {
-    navigate(`/hotel/${hotelId}`);
+    hotels.forEach((hotel) => {
+      const firstRoomType = hotel.roomTypes?.[0];
+      if (!firstRoomType) return;
+
+      const key = `${hotel.id}_${checkInDate}`;
+      if (priceMap[key]) return; // đã có thì không gọi lại
+
+      fetchHotelPriceByDate(
+        hotel.id,
+        firstRoomType.code,
+        checkInDate
+      );
+    });
+  }, [checkInDate, hotels]);
+
+  const handleViewDetail = (identifier: string) => {
+    navigate(`/hotel/${identifier}`);
   };
+
+  const toSlug = (value: string) =>
+    value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-");
 
   const calculateTotalRooms = (roomTypes: any[]) => {
     return roomTypes?.reduce((sum, type) => sum + (type.totalRooms || 0), 0) || 0;
@@ -127,15 +186,15 @@ const BookingPage: React.FC = () => {
     <div className="bg-gray-50 min-h-screen relative">
       <Header />
       <div className="hidden lg:block">
-        <Navbar />
+        {/* <Navbar /> */}
       </div>
       <ErrorToast message={toastError} isVisible={!!toastError} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* --- THANH TÌM KIẾM --- */}
         <div className="bg-white p-4 md:p-6 rounded-xl shadow-lg mb-8 border border-gray-100">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4 md:mb-6 flex items-center">
-            <FaBuilding className="text-orange-500 mr-3" /> Tìm Khách Sạn
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4 md:mb-6 flex items-center gap-3">
+            <span className="text-orange-500"><FaBuilding /></span> Tìm Khách Sạn
           </h1>
 
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 items-end">
@@ -143,8 +202,8 @@ const BookingPage: React.FC = () => {
             <div className="md:col-span-5 relative">
               <label className="block text-xs font-bold text-gray-500 mb-1 ml-1">Điểm đến / Tên khách sạn</label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaMapMarkerAlt className="text-orange-500" />
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-orange-500">
+                  <FaMapMarkerAlt />
                 </div>
                 <input
                   type="text"
@@ -226,15 +285,13 @@ const BookingPage: React.FC = () => {
               {hotels.map((hotel) => {
                 const totalRooms = calculateTotalRooms(hotel.roomTypes || []);
 
-                let startPrice = 0;
-                if (hotel.minPrice && hotel.minPrice > 0) {
-                  startPrice = hotel.minPrice;
-                } else if (hotel.roomTypes && hotel.roomTypes.length > 0) {
-                  const prices = hotel.roomTypes
-                    .map((rt: any) => rt.price || rt.priceMonToThu || rt.priceWeekday || 0)
-                    .filter((p: number) => p > 0);
-                  if (prices.length > 0) startPrice = Math.min(...prices);
-                }
+                const priceKey = `${hotel.id}_${checkInDate}`;
+
+                // Logic giá: Ưu tiên giá theo ngày (priceMap), sau đó là minPrice của khách sạn
+                const startPrice =
+                  (checkInDate && priceMap[priceKey])
+                    ? priceMap[priceKey]
+                    : (hotel.minPrice || 0);
 
                 const availableRoomCount = hotel.roomTypes?.reduce((acc, rt: any) => acc + (rt.availableRooms ?? rt.totalRooms), 0);
                 const isCheckDateMode = checkInDate && checkOutDate;
@@ -243,7 +300,10 @@ const BookingPage: React.FC = () => {
                   <div
                     key={hotel.id}
                     className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-2xl transition-all duration-300 border border-gray-100 group flex flex-col cursor-pointer"
-                    onClick={() => handleViewDetail(hotel.id)}
+                    onClick={() => {
+                      const slugValue = hotel.slug || toSlug(hotel.name || "");
+                      handleViewDetail(slugValue || hotel.id);
+                    }}
                   >
                     {/* Ảnh bìa */}
                     <div className="h-56 bg-gray-200 relative overflow-hidden">
@@ -253,7 +313,7 @@ const BookingPage: React.FC = () => {
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                       />
                       <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center">
-                        <FaBed className="mr-1.5 text-orange-400" />
+                        <span className="text-orange-400 mr-1.5"><FaBed /></span>
                         {isCheckDateMode && availableRoomCount !== undefined
                           ? `Còn ${availableRoomCount} phòng`
                           : `${totalRooms} phòng`}
@@ -266,7 +326,7 @@ const BookingPage: React.FC = () => {
                       </h3>
 
                       <div className="flex items-center text-gray-500 text-sm mb-3">
-                        <FaMapMarkerAlt className="mr-1.5 text-orange-500 flex-shrink-0" />
+                        <span className="text-orange-500 mr-1.5 flex-shrink-0"><FaMapMarkerAlt /></span>
                         <span className="line-clamp-1">{hotel.address}</span>
                       </div>
 
@@ -276,9 +336,11 @@ const BookingPage: React.FC = () => {
 
                       <div className="border-t border-gray-100 pt-4 flex items-end justify-between mt-auto">
                         <div>
-                          <p className="text-xs text-gray-400 mb-0.5">Giá chỉ từ</p>
+                          <p className="text-x text-red-600 mb-0.5 animate-pulse">
+                            🔥 Giá chỉ từ
+                          </p>
                           <p className="text-xl font-bold text-orange-600">
-                            {new Intl.NumberFormat("vi-VN").format(startPrice)}
+                            {formatCurrency(startPrice)}
                             <span className="text-sm text-gray-500 font-normal ml-1">₫</span>
                           </p>
                         </div>

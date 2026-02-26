@@ -50,7 +50,20 @@ export interface CreateHotelBookingRequest {
   customerEmail: string | null;  // ⚠️ Update: Nullable
   customerPhone: string;
   otp: string;
+  currentPrice?: number;
+  totalAmount?: number;
+  channel?: string;
   notificationChannel?: "EMAIL" | "ZALO"; // ⚠️ Update: New field
+}
+
+export interface SpecialPriceItem {
+  id: string;
+  hotelId: string;
+  roomTypeCode: string;
+  date: string;
+  price: number;
+  surcharge: number;
+  note: string;
 }
 
 export interface HotelPaymentResponse {

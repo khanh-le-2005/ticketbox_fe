@@ -23,7 +23,8 @@ axiosClient.interceptors.request.use(
             '/shows',
             '/images',
             '/verification',
-            '/hotels'
+            '/hotels',
+            // '/bookings' // Bỏ dòng này đi để API checkStatus GỬI KÈM TOKEN (như Postman)
         ];
 
         // Check xem URL hiện tại có phải public không

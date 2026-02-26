@@ -14,7 +14,6 @@ import {
   FaMusic,
 } from "react-icons/fa";
 import Header from "../components/Header";
-import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { useAuth } from "../hooks/useAuth";
 import BookingApi from "../api/bookingApi";
@@ -51,7 +50,7 @@ const MyTicketsPage: React.FC = () => {
     try {
       setLoading(true);
       const res = await BookingApi.getHistory();
-      
+
       // JSON trả về: { success: true, data: { content: [...] } }
       if (res.success && res.data && Array.isArray(res.data.content)) {
         setTickets(res.data.content);
@@ -120,7 +119,6 @@ const MyTicketsPage: React.FC = () => {
   return (
     <div className="bg-gray-50 min-h-screen flex flex-col">
       <Header />
-      <Navbar />
 
       <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
         <div className="mb-8 border-b pb-4 flex justify-between items-center">
@@ -143,7 +141,7 @@ const MyTicketsPage: React.FC = () => {
         {!user ? (
           <div className="flex flex-col items-center justify-center py-16 bg-white rounded-lg shadow-sm border border-gray-200">
             <div className="bg-orange-100 p-4 rounded-full mb-4">
-              <FaUser className="text-4xl text-orange-500" />
+              <span className="text-4xl text-orange-500"><FaUser /></span>
             </div>
             <h2 className="text-xl font-bold text-gray-800 mb-2">
               Bạn chưa đăng nhập
@@ -156,7 +154,7 @@ const MyTicketsPage: React.FC = () => {
                 to="/login"
                 className="flex items-center bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition font-medium"
               >
-                <FaSignInAlt className="mr-2" /> Đăng nhập ngay
+                <span className="mr-2"><FaSignInAlt /></span> Đăng nhập ngay
               </Link>
             </div>
           </div>
@@ -168,7 +166,7 @@ const MyTicketsPage: React.FC = () => {
               </div>
             ) : tickets.length === 0 ? (
               <div className="text-center py-20 bg-white rounded-lg shadow-sm">
-                <FaTicketAlt className="mx-auto text-6xl text-gray-200 mb-4" />
+                <span className="mx-auto text-6xl text-gray-200 mb-4 flex justify-center"><FaTicketAlt /></span>
                 <h2 className="text-xl font-semibold text-gray-600">
                   Bạn chưa có đơn hàng nào
                 </h2>
@@ -189,12 +187,12 @@ const MyTicketsPage: React.FC = () => {
                     placeholder="Tìm theo tên hoặc mã đơn..."
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                   />
-                  <FaSearch className="absolute left-3 top-3 text-gray-400" />
+                  <span className="absolute left-3 top-3 text-gray-400"><FaSearch /></span>
                 </div>
 
                 {filteredTickets.map((ticket) => {
                   const statusInfo = getStatusDisplay(ticket.status);
-                  
+
                   return (
                     <div
                       key={ticket.id}
@@ -204,12 +202,12 @@ const MyTicketsPage: React.FC = () => {
                       <div className="w-full md:w-32 bg-gray-100 flex flex-col items-center justify-center text-gray-400 p-4 border-r border-gray-100">
                         {ticket.type === "HOTEL" ? (
                           <>
-                            <FaHotel size={32} className="text-blue-500 mb-2" />
+                            <span className="text-blue-500 mb-2 inline-block"><FaHotel size={32} /></span>
                             <span className="text-xs font-bold text-blue-600">HOTEL</span>
                           </>
                         ) : (
                           <>
-                            <FaMusic size={32} className="text-pink-500 mb-2" />
+                            <span className="text-pink-500 mb-2 inline-block"><FaMusic size={32} /></span>
                             <span className="text-xs font-bold text-pink-600">SHOW</span>
                           </>
                         )}
@@ -241,24 +239,24 @@ const MyTicketsPage: React.FC = () => {
                         {/* Chi tiết theo loại */}
                         <div className="text-sm text-gray-600 space-y-2 mb-3 mt-2">
                           <p className="flex items-center text-gray-700">
-                            <FaCalendarAlt className="mr-2 text-orange-500" />
+                            <span className="mr-2 text-orange-500"><FaCalendarAlt /></span>
                             <span className="font-medium">
                               {/* Sử dụng eventDate */}
                               {formatDate(ticket.eventDate)}
-                              {ticket.checkOutDate && ` - ${formatDate(ticket.checkOutDate).split(' ')[1]}`} 
+                              {ticket.checkOutDate && ` - ${formatDate(ticket.checkOutDate).split(' ')[1]}`}
                             </span>
                           </p>
                           <p className="flex items-start">
-                            <FaMapMarkerAlt className="mr-2 text-orange-500 mt-1 flex-shrink-0" />
+                            <span className="mr-2 text-orange-500 mt-1 flex-shrink-0"><FaMapMarkerAlt /></span>
                             {/* Sử dụng location */}
                             <span>{ticket.location}</span>
                           </p>
-                          
+
                           {/* Hiển thị thêm loại phòng nếu là khách sạn */}
                           {ticket.type === "HOTEL" && ticket.roomTypeName && (
-                             <p className="text-gray-500 italic pl-6">
-                               Loại phòng: {ticket.roomTypeName}
-                             </p>
+                            <p className="text-gray-500 italic pl-6">
+                              Loại phòng: {ticket.roomTypeName}
+                            </p>
                           )}
                         </div>
 

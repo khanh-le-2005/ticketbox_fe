@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FaTimes, FaHotel, FaCalendarCheck, FaBed, FaUserFriends, FaArrowRight, FaExclamationCircle, FaCheckCircle } from 'react-icons/fa';
 import roomApi from '../api/room_api';
-import type { CreateHotelBookingRequest } from '@/type/room.types';
+import hotelApi from '../api/hotelApi';
+import type { CreateHotelBookingRequest, SpecialPriceItem } from '@/type/room.types';
 import axiosClient from '../api/axiosClient';
 import { useNavigate } from 'react-router-dom';
 import PaymentStepModal from './PaymentStepModal';
@@ -44,6 +45,8 @@ const HotelBookingModal: React.FC<HotelBookingModalProps> = ({
         checking: boolean;
     } | null>(null);
 
+    const [specialPrices, setSpecialPrices] = useState<SpecialPriceItem[]>([]);
+
     const [bookingConfig, setBookingConfig] = useState({
         checkInDate: '',
         checkOutDate: '',
@@ -57,9 +60,9 @@ const HotelBookingModal: React.FC<HotelBookingModalProps> = ({
             const today = getTodayDate();
             const tomorrow = getTomorrowDate();
 
-            // Nếu initial từ props <= today, ép về tomorrow theo luật Backend
+            // Bắt buộc ngày nhận phòng phải sau ngày đặt ít nhất 1 ngày
             let finalCheckIn = initialCheckIn || tomorrow;
-            if (finalCheckIn <= today) finalCheckIn = tomorrow;
+            if (finalCheckIn < tomorrow) finalCheckIn = tomorrow;
 
             // Tính checkOut tối thiểu (CheckIn + 1)
             const checkInObj = new Date(finalCheckIn);
@@ -79,6 +82,19 @@ const HotelBookingModal: React.FC<HotelBookingModalProps> = ({
             setCurrentStep(HotelBookingStep.DATE_SELECTION);
         }
     }, [isOpen, initialCheckIn, initialCheckOut]);
+
+    // --- FETCH SPECIAL PRICES ---
+    useEffect(() => {
+        if (hotelId) {
+            hotelApi.getSpecialPrices(hotelId)
+                .then((res: any) => {
+                    if (res.success || res.code === 200) {
+                        setSpecialPrices(res.data);
+                    }
+                })
+                .catch(err => console.error("Failed to load special prices", err));
+        }
+    }, [hotelId]);
 
     // --- VARIABLES ---
     const currentRooms = Math.max(1, Number(bookingConfig.quantity));
@@ -103,49 +119,92 @@ const HotelBookingModal: React.FC<HotelBookingModalProps> = ({
         return getLocalDateString(tomorrow);
     };
 
-    const calculateDynamicTotal = () => {
-        if (!bookingConfig.checkInDate || !bookingConfig.checkOutDate) return 0;
-        const start = new Date(bookingConfig.checkInDate);
-        const end = new Date(bookingConfig.checkOutDate);
-        const roomQty = Math.max(1, Number(bookingConfig.quantity));
-        const totalGuests = Math.max(1, Number(bookingConfig.guests));
-        const totalStandardCapacity = standardCapacity * roomQty;
-        const extraPeople = Math.max(0, totalGuests - totalStandardCapacity);
+    const [apiPriceData, setApiPriceData] = useState<any>(null);
+    const [modalRealtimePrice, setModalRealtimePrice] = useState<number>(0);
 
-        start.setHours(0, 0, 0, 0);
-        end.setHours(0, 0, 0, 0);
+    const fetchModalRoomPrice = async () => {
+        if (!hotelId || !roomTypeCode || !bookingConfig.checkInDate) return;
 
-        let current = new Date(start);
-        let totalAmount = 0;
-        let nightCount = 0;
+        // 1. Check if date has special price locally
+        const specialEntry = specialPrices.find(sp =>
+            sp.date === bookingConfig.checkInDate &&
+            sp.roomTypeCode === roomTypeCode
+        );
 
-        while (current < end) {
-            const day = current.getDay();
-            let dailyRoomPrice = 0;
-            let dailySurchargeUnit = 0;
-            if (day === 0) {
-                dailyRoomPrice = priceConfig.priceSunday;
-                dailySurchargeUnit = priceConfig.surchargeSunToThu;
-            } else if (day === 6) {
-                dailyRoomPrice = priceConfig.priceSaturday;
-                dailySurchargeUnit = priceConfig.surchargeFriSat;
-            } else if (day === 5) {
-                dailyRoomPrice = priceConfig.priceFriday;
-                dailySurchargeUnit = priceConfig.surchargeFriSat;
-            } else {
-                dailyRoomPrice = priceConfig.priceMonToThu;
-                dailySurchargeUnit = priceConfig.surchargeSunToThu;
-            }
-            if (!dailyRoomPrice) dailyRoomPrice = priceConfig.priceMonToThu;
-
-            totalAmount += (dailyRoomPrice * roomQty);
-            if (extraPeople > 0) {
-                totalAmount += (extraPeople * dailySurchargeUnit);
-            }
-            current.setDate(current.getDate() + 1);
-            nightCount++;
+        if (specialEntry) {
+            setModalRealtimePrice(specialEntry.price);
+            return;
         }
-        return totalAmount || 0;
+
+        try {
+            const res: any = await hotelApi.getRoomPrice(hotelId, roomTypeCode, bookingConfig.checkInDate);
+            const priceData = res.data?.data || res.data;
+            if (priceData && typeof priceData.price === 'number' && priceData.price > 0) {
+                setModalRealtimePrice(priceData.price);
+            }
+        } catch (error) {
+            console.error("Lỗi lấy giá phòng theo ngày trong modal:", error);
+        }
+    };
+
+    useEffect(() => {
+        fetchModalRoomPrice();
+    }, [bookingConfig.checkInDate, hotelId, roomTypeCode, specialPrices]);
+
+    const fetchCalculatedPrice = async () => {
+        if (!bookingConfig.checkInDate || !bookingConfig.checkOutDate) return;
+        try {
+            const payload = {
+                hotelId: hotelId,
+                roomTypeCode: roomTypeCode,
+                checkIn: bookingConfig.checkInDate,
+                checkOut: bookingConfig.checkOutDate,
+                checkInDate: bookingConfig.checkInDate,
+                checkOutDate: bookingConfig.checkOutDate,
+                quantity: Number(bookingConfig.quantity),
+                numberOfGuests: Number(bookingConfig.guests),
+                // Add numberOfRooms as requested by user
+                numberOfRooms: Number(bookingConfig.quantity),
+            };
+            const res: any = await hotelApi.calculatePrice(payload);
+            if (res.success || res.code === 200) {
+                // Backend may return totalAmount, totalPrice, or currentPrice
+                const data = res.data;
+                // Normalize the total price
+                const finalTotal = data.totalAmount || data.totalPrice || data.currentPrice;
+
+                setApiPriceData({
+                    ...data,
+                    totalPrice: finalTotal, // Ensure we always have a totalPrice property to rely on
+                    dailyBreakdown: data.dailyBreakdown || []
+                });
+            }
+        } catch (error) {
+            console.error("Lỗi tính giá từ API:", error);
+        }
+    };
+
+    useEffect(() => {
+        const timeoutId = setTimeout(fetchCalculatedPrice, 500);
+        return () => clearTimeout(timeoutId);
+    }, [bookingConfig.checkInDate, bookingConfig.checkOutDate, bookingConfig.quantity, bookingConfig.guests]);
+
+    const calculateDynamicTotal = () => {
+        const apiTotal = apiPriceData?.currentPrice || apiPriceData?.totalPrice;
+
+        // Use API total if available (handles mixed rates: standard + special days)
+        if (apiTotal && apiTotal > 0) {
+            return apiTotal;
+        }
+
+        // Fallback: Estimate based on first night's price + surcharge
+        const currentRefPrice = modalRealtimePrice || priceConfig.currentPrice || 0;
+        if (currentRefPrice > 0) {
+            const nights = getNightCount();
+            return (currentRefPrice * bookingConfig.quantity * nights) + (apiPriceData?.surchargeTotal || 0);
+        }
+
+        return 0;
     };
 
     const getNightCount = () => {
@@ -191,7 +250,20 @@ const HotelBookingModal: React.FC<HotelBookingModalProps> = ({
 
     // --- HANDLERS ---
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setBookingConfig({ ...bookingConfig, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        setBookingConfig(prev => {
+            const newState = { ...prev, [name]: value };
+
+            // Auto-set checkOutDate to the next day when checkInDate changes
+            if (name === 'checkInDate' && value) {
+                const checkIn = new Date(value);
+                const nextDay = new Date(checkIn);
+                nextDay.setDate(nextDay.getDate() + 1);
+                newState.checkOutDate = getLocalDateString(nextDay);
+            }
+
+            return newState;
+        });
     };
 
     const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -208,9 +280,9 @@ const HotelBookingModal: React.FC<HotelBookingModalProps> = ({
     };
 
     const handleContinueToContact = () => {
-        const today = getTodayDate();
-        if (!bookingConfig.checkInDate || bookingConfig.checkInDate <= today) {
-            toast.error("Ngày nhận phòng phải từ ngày mai trở đi.");
+        const tomorrow = getTomorrowDate();
+        if (!bookingConfig.checkInDate || bookingConfig.checkInDate < tomorrow) {
+            toast.error("Ngày nhận phòng phải sau ngày đặt phòng ít nhất 1 ngày.");
             return;
         }
         if (!bookingConfig.checkOutDate || bookingConfig.checkOutDate <= bookingConfig.checkInDate) {
@@ -241,6 +313,7 @@ const HotelBookingModal: React.FC<HotelBookingModalProps> = ({
                 customerPhone: contactData.phone,
                 otp: contactData.otp,
                 totalAmount: Number(finalTotal),
+                currentPrice: Number(finalTotal),
                 customerEmail: contactData.email || "",
                 channel: contactData.notificationChannel || 'EMAIL',
                 notificationChannel: contactData.notificationChannel || 'EMAIL'
@@ -357,7 +430,35 @@ const HotelBookingModal: React.FC<HotelBookingModalProps> = ({
                                 </div>
                                 <div className="text-right text-xs text-gray-500">
                                     <p><span>{bookingConfig.quantity} phòng x {getNightCount()} đêm</span></p>
-                                    {extraGuests > 0 && <p className="text-red-500 font-bold mt-1"><span>+ Phụ thu {extraGuests} người</span></p>}
+                                    {apiPriceData?.surchargeTotal > 0 && (
+                                        <p className="text-red-500 font-bold mt-1">
+                                            <span>+ Phụ thu {apiPriceData.surchargeTotal.toLocaleString()} ₫</span>
+                                        </p>
+                                    )}
+
+                                    {/* Daily Breakdown Details */}
+                                    {apiPriceData?.dailyBreakdown?.length > 0 && (
+                                        <div className="mt-3 pt-3 border-t border-gray-200">
+                                            <details className="group">
+                                                <summary className="flex justify-between items-center font-medium cursor-pointer list-none text-orange-600 text-xs">
+                                                    <span>Chi tiết giá theo ngày</span>
+                                                    <span className="transition group-open:rotate-180 inline-block transform rotate-90">
+                                                        <FaArrowRight size={10} />
+                                                    </span>
+                                                </summary>
+                                                <div className="text-gray-600 mt-2 space-y-1 text-xs">
+                                                    {apiPriceData.dailyBreakdown.map((item: any, idx: number) => (
+                                                        <div key={idx} className="flex justify-between">
+                                                            <span className="text-gray-500">{item.date} ({item.note || 'Ngày thường'})</span>
+                                                            <span className="font-medium">
+                                                                {(item.price + (item.surcharge || 0)).toLocaleString()} ₫
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </details>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 

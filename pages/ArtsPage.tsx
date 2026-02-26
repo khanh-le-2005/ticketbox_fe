@@ -2,13 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import Header from '../components/Header';
-import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import EventCard from '../components/EventCard';
 import showApi from '../api/showApi'; // Import API
 
 // Hàm format tiền tệ
-const formatCurrency = (val: number) => 
+const formatCurrency = (val: number) =>
     new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(val);
 
 const ArtsPage: React.FC = () => {
@@ -28,9 +27,9 @@ const ArtsPage: React.FC = () => {
                 const mappedEvents = rawData.map((show: any) => {
                     // Xử lý địa chỉ
                     const addr = show.address || {};
-                    const fullLocation = addr.fullAddress || 
+                    const fullLocation = addr.fullAddress ||
                         [addr.specificAddress, addr.ward, addr.district, addr.province]
-                        .filter(Boolean).join(", ");
+                            .filter(Boolean).join(", ");
 
                     // Xử lý giá vé thấp nhất
                     let minPrice = 0;
@@ -39,9 +38,9 @@ const ArtsPage: React.FC = () => {
                     }
 
                     // Xử lý ảnh: Nếu không có ảnh thật thì dùng ảnh seed 'abstract' cho nghệ thuật
-                    const imageUrl = (show.images && show.images.length > 0) 
-                        ? show.images[0] 
-                        : 'https://picsum.photos/seed/arts/800/600'; 
+                    const imageUrl = (show.images && show.images.length > 0)
+                        ? show.images[0]
+                        : 'https://picsum.photos/seed/arts/800/600';
 
                     return {
                         id: show.id,
@@ -57,7 +56,7 @@ const ArtsPage: React.FC = () => {
 
                 // (Tùy chọn) Lọc hoặc sắp xếp
                 // Hiện tại hiển thị tất cả, sắp xếp mới nhất lên đầu
-                const sortedEvents = mappedEvents.sort((a: any, b: any) => 
+                const sortedEvents = mappedEvents.sort((a: any, b: any) =>
                     new Date(b.date).getTime() - new Date(a.date).getTime()
                 );
 
@@ -75,17 +74,16 @@ const ArtsPage: React.FC = () => {
     return (
         <div className="bg-gray-50 min-h-screen flex flex-col">
             <Header />
-            <Navbar />
             <main className="flex-grow">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                     {/* Banner Arts */}
-                    <div className="bg-white p-6 rounded-lg shadow-lg mb-8" style={{backgroundImage: "url('https://picsum.photos/seed/artsbg/1200/200')", backgroundSize: 'cover', backgroundPosition: 'center'}}>
+                    <div className="bg-white p-6 rounded-lg shadow-lg mb-8" style={{ backgroundImage: "url('https://picsum.photos/seed/artsbg/1200/200')", backgroundSize: 'cover', backgroundPosition: 'center' }}>
                         <div className="bg-black bg-opacity-50 p-4 rounded-md">
                             <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">Văn Hóa & Nghệ Thuật</h1>
                             <p className="text-gray-200">Đắm chìm trong không gian của những giai điệu acoustic, kịch nói, triển lãm và các sự kiện nghệ thuật đặc sắc.</p>
                         </div>
                     </div>
-                    
+
                     <section>
                         {loading ? (
                             // Loading UI

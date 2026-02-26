@@ -25,21 +25,6 @@
 //       tickets: request.tickets.map((t: any) => ({ ...t, quantity: Number(t.quantity) })),
 //     };
 //     return axiosClient.post("/bookings", cleanRequest);
-//   },
-
-//   getBookingById: async (id: string): Promise<ApiResponse<BookingDetail>> => {
-//     return axiosClient.get(`/bookings/${id}`);
-//   },
-
-//   checkStatus: async (id: string) => {
-//     return axiosClient.get(`/bookings/${id}/status`);
-//   },
-
-//   getHistory: async (): Promise<ApiResponse<{ content: TicketItem[] }>> => {
-//     return axiosClient.get("/bookings/my-history");
-//   },
-
-//   requestOtp: async (target: string, channel: 'EMAIL' | 'ZALO' = 'EMAIL', type: string = 'SHOW') => {
 //     return axiosClient.post('/verification/request-otp', null, { params: { target, channel, type } });
 //   },
 
@@ -62,7 +47,7 @@ const BookingApi = {
       ...request,
       tickets: request.tickets.map((t: any) => ({ ...t, quantity: Number(t.quantity) })),
     };
-    
+
     return axiosClient.post("/bookings", cleanRequest);
   },
 
@@ -70,10 +55,11 @@ const BookingApi = {
     return axiosClient.get(`/bookings/${id}`);
   },
 
-// Trong bookingApi.ts
-checkStatus: async (id: string) => {
-  return axiosClient.get(`/bookings/${id}/status`);
-},
+  // Trong bookingApi.ts
+  checkStatus: async (id: string) => {
+    // Đảm bảo URL là /bookings/ID/status
+    return axiosClient.get(`/bookings/${id}/status`);
+  },
 
   getHistory: async (): Promise<ApiResponse<{ content: TicketItem[] }>> => {
     return axiosClient.get("/bookings/my-history");

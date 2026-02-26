@@ -2,12 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import Header from '../components/Header';
-import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import EventCard from '../components/EventCard';
-import showApi from '../api/showApi'; 
+import showApi from '../api/showApi';
 // Hàm format tiền tệ
-const formatCurrency = (val: number) => 
+const formatCurrency = (val: number) =>
     new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(val);
 
 const TourismPage: React.FC = () => {
@@ -18,23 +17,23 @@ const TourismPage: React.FC = () => {
         const fetchTourismEvents = async () => {
             try {
                 setLoading(true);
-                const response = await showApi.getAllShows();
-                const rawData = response.data;
+                const response: any = await showApi.getAllShows();
+                const rawData = response.data?.content || response.shows || response;
 
                 // 1. Map dữ liệu từ API sang cấu trúc EventCard
                 const mappedEvents = rawData.map((show: any) => {
                     const addr = show.address || {};
-                    const fullLocation = addr.fullAddress || 
+                    const fullLocation = addr.fullAddress ||
                         [addr.specificAddress, addr.ward, addr.district, addr.province]
-                        .filter(Boolean).join(", ");
+                            .filter(Boolean).join(", ");
 
                     let minPrice = 0;
                     if (show.ticketTypes && show.ticketTypes.length > 0) {
                         minPrice = Math.min(...show.ticketTypes.map((t: any) => t.price));
                     }
 
-                    const imageUrl = (show.images && show.images.length > 0) 
-                        ? show.images[0] 
+                    const imageUrl = (show.images && show.images.length > 0)
+                        ? show.images[0]
                         : 'https://picsum.photos/seed/travel/800/600'; // Ảnh mặc định chủ đề du lịch
 
                     return {
@@ -49,9 +48,9 @@ const TourismPage: React.FC = () => {
                     };
                 });
                 const tourismEvents = mappedEvents.filter((event: any) => {
-                    return true; 
+                    return true;
                 });
-                const sortedEvents = tourismEvents.sort((a: any, b: any) => 
+                const sortedEvents = tourismEvents.sort((a: any, b: any) =>
                     new Date(b.date).getTime() - new Date(a.date).getTime()
                 );
 
@@ -69,17 +68,16 @@ const TourismPage: React.FC = () => {
     return (
         <div className="bg-gray-50 min-h-screen flex flex-col">
             <Header />
-            <Navbar />
             <main className="flex-grow">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                     {/* Banner Du lịch */}
-                    <div className="bg-white p-6 rounded-lg shadow-lg mb-8" style={{backgroundImage: "url('https://picsum.photos/seed/travelbg/1200/300')", backgroundSize: 'cover', backgroundPosition: 'center'}}>
+                    <div className="bg-white p-6 rounded-lg shadow-lg mb-8" style={{ backgroundImage: "url('https://picsum.photos/seed/travelbg/1200/300')", backgroundSize: 'cover', backgroundPosition: 'center' }}>
                         <div className="bg-black bg-opacity-60 p-6 rounded-md max-w-2xl">
                             <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">Du Lịch & Khám Phá</h1>
                             <p className="text-gray-200 text-lg">Trải nghiệm những chuyến đi tuyệt vời, khám phá vẻ đẹp Việt Nam và các hoạt động văn hóa đặc sắc.</p>
                         </div>
                     </div>
-                    
+
                     <section>
                         {loading ? (
                             <div className="flex justify-center items-center h-64">

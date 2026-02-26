@@ -1,39 +1,4 @@
-// import axiosClient from "./axiosClient"; // Check lại viết hoa/thường tên file này
-// import { ApiResponse, RoomTypePayload, RoomTypeResponse } from '../type/room.types';
-// import { Hotel, CreateHotelRequest, UpdateHotelRequest, UploadResponse } from "@/type";
-
-// const hotelApi = {
-//   getAll: () => axiosClient.get<ApiResponse<Hotel[]>>("/hotels"),
-
-//   getById: (id: string) => axiosClient.get<ApiResponse<Hotel>>(`/hotels/${id}`),
-
-//   create: (data: CreateHotelRequest) =>
-//     axiosClient.post<ApiResponse<Hotel>>("/hotels", data),
-
-//   update: (id: string, data: UpdateHotelRequest) =>
-//     axiosClient.put<ApiResponse<Hotel>>(`/hotels/${id}`, data),
-
-//   delete: (id: string) => axiosClient.delete<ApiResponse<any>>(`/hotels/${id}`),
-
-//   uploadImage: (file: File) => {
-//     const formData = new FormData();
-//     formData.append("file", file);
-//     return axiosClient.post<ApiResponse<UploadResponse>>(
-//       "/media/upload",
-//       formData,
-//       {
-//         headers: { "Content-Type": "multipart/form-data" },
-//       }
-//     );
-//   },
-
-//   search: (keyword: string) =>
-//     axiosClient.get<ApiResponse<Hotel[]>>("/hotels", { params: { keyword } }),
-// };
-
-// export default hotelApi;
-
-import axiosClient from "./axiosClient"; 
+import axiosClient from "./axiosClient";
 import {
   ApiResponse,
   Hotel,
@@ -41,6 +6,7 @@ import {
   UpdateHotelRequest,
   AvailabilityResponse,
   CalendarDayItem,
+  SpecialPriceItem,
 } from "../type"; // Đảm bảo đã export đủ các type này trong file type chung
 
 // Cấu hình URL gốc để ghép link ảnh
@@ -220,12 +186,26 @@ const hotelApi = {
     );
   },
 
-  getRoomPrice: (hotelId: string, roomTypeCode: string) => {
+  getRoomPrice: (hotelId: string, roomTypeCode: string, date: string) => {
     return axiosClient.get<ApiResponse<RoomPriceResponse>>(
       `/hotels/${hotelId}/price`,
       {
-        params: { roomTypeCode },
+        params: { roomTypeCode, date, _t: new Date().getTime() },
       }
+    );
+  },
+
+  calculatePrice: async (data: any) => {
+    const res: any = await axiosClient.post<ApiResponse<any>>("/hotels/calculate-price", { ...data, _t: new Date().getTime() });
+    if (res && res.data && res.data.totalPrice !== undefined && res.data.currentPrice === undefined) {
+      res.data.currentPrice = res.data.totalPrice;
+    }
+    return res;
+  },
+
+  getSpecialPrices: (hotelId: string) => {
+    return axiosClient.get<ApiResponse<SpecialPriceItem[]>>(
+      `/hotels/${hotelId}/special-prices`
     );
   },
 };

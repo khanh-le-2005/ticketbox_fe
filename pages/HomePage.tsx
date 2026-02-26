@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import Header from "../components/Header";
-import Navbar from "../components/Navbar";
 import Hero from "../components/Hero";
 import EventCard from "../components/EventCard";
 import EventSection from "../components/EventSection";
@@ -139,11 +138,6 @@ const HomePage: React.FC = () => {
   return (
     <div className="bg-gray-50 min-h-screen relative">
       <Header />
-
-      {/* 👇 SỬA ĐOẠN NÀY: Ẩn Navbar trên mobile để không bị trùng 2 menu */}
-      <div className="hidden lg:block">
-        <Navbar />
-      </div>
 
       <main>
         <Hero />

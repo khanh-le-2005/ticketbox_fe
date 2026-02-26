@@ -48,7 +48,7 @@ function App() {
 
           {/* Chi tiết */}
           <Route path="/event/:id" element={<EventDetailPage />} />
-          <Route path="/hotel/:id" element={<HotelDetailPage />} />
+          <Route path="/hotel/:slug" element={<HotelDetailPage />} />
           <Route path="/booking" element={<BookingPage />} />
           <Route path="/news/:id" element={<NewsDetailPage />} />
 
@@ -102,5 +102,4 @@ function App() {
     </Router>
   );
 }
-
 export default App;

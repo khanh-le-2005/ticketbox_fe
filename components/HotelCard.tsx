@@ -5,6 +5,18 @@ import { HotelCardProps } from '../types';
 import { FaStar, FaMapMarkerAlt, FaBed } from 'react-icons/fa';
 
 const HotelCard: React.FC<HotelCardProps> = ({ hotel, onBookNow }) => {
+    const toSlug = (value: string) =>
+        value
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase()
+            .trim()
+            .replace(/[^a-z0-9\s-]/g, "")
+            .replace(/\s+/g, "-")
+            .replace(/-+/g, "-");
+
+    const hotelPath = `/hotel/${hotel.slug || toSlug(hotel.name || "") || hotel.id}`;
+
     const renderStars = (rating: number) => {
         const stars = [];
         for (let i = 0; i < 5; i++) {
@@ -19,7 +31,7 @@ const HotelCard: React.FC<HotelCardProps> = ({ hotel, onBookNow }) => {
 
     return (
         <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 flex flex-col">
-            <Link to={`/hotel/${hotel.id}`} className="relative block">
+            <Link to={hotelPath} className="relative block">
                 <img src={hotel.imageUrl} alt={hotel.name} className="w-full h-48 object-cover" />
                 <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-opacity duration-300"></div>
                 <div className="absolute top-2 right-2 bg-white/90 px-2 py-1 rounded text-xs font-semibold text-gray-700 shadow-sm flex items-center">
@@ -29,7 +41,7 @@ const HotelCard: React.FC<HotelCardProps> = ({ hotel, onBookNow }) => {
             </Link>
             <div className="p-4 flex flex-col flex-grow">
                 <div className="flex justify-between items-start mb-2">
-                    <Link to={`/hotel/${hotel.id}`} className="text-md font-bold text-gray-800 leading-tight flex-grow pr-2 hover:text-indigo-600 transition-colors">
+                    <Link to={hotelPath} className="text-md font-bold text-gray-800 leading-tight flex-grow pr-2 hover:text-indigo-600 transition-colors">
                         {hotel.name}
                     </Link>
                     {renderStars(hotel.rating)}

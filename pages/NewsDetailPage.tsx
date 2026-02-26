@@ -7,7 +7,6 @@ import DOMPurify from "dompurify"; // Thư viện làm sạch HTML
 
 // Import Layout Components
 import Header from "../components/Header";
-import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
 // Import API
@@ -57,7 +56,6 @@ export const NewsDetailPage: React.FC = () => {
     return (
       <div className="bg-gray-50 min-h-screen flex flex-col">
         <Header />
-        <Navbar />
         <div className="flex-grow flex flex-col items-center justify-center py-20">
           <Loader2 className="w-10 h-10 animate-spin text-orange-600 mb-4" />
           <span className="text-gray-500 font-medium">
@@ -74,7 +72,6 @@ export const NewsDetailPage: React.FC = () => {
     return (
       <div className="bg-gray-50 min-h-screen flex flex-col">
         <Header />
-        <Navbar />
         <div className="flex-grow flex flex-col items-center justify-center py-20 px-4 text-center">
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Rất tiếc!</h2>
           <p className="text-red-500 mb-6">
@@ -101,9 +98,6 @@ export const NewsDetailPage: React.FC = () => {
     //   <Navbar />
     <div className="bg-gray-50 min-h-screen relative">
       <Header />
-      <div className="hidden md:block">
-        <Navbar />
-      </div>
 
       <main className="flex-grow pt-8 pb-16">
         <div className="container mx-auto px-4 max-w-7xl">
