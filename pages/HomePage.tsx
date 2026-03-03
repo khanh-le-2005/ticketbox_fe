@@ -80,6 +80,7 @@ const HomePage: React.FC = () => {
 
           return {
             id: show.id,
+            slug: show.slug,
             title: show.name,
             date: show.startTime,
             location: locationStr || "Hà Nội",
@@ -143,7 +144,7 @@ const HomePage: React.FC = () => {
         <Hero />
 
         {/* --- SỰ KIỆN NỔI BẬT --- */}
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 my-10">
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 my-10 ">
           <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
             <h2 className="text-2xl font-bold text-gray-800 border-l-4 border-orange-500 pl-3">
               SỰ KIỆN NỔI BẬT

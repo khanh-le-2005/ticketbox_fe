@@ -53,6 +53,12 @@ const Header: React.FC = () => {
                             <Link to="/news" className="text-gray-800 font-bold text-x hover:text-orange-600 transition-colors whitespace-nowrap">
                                 Tin tức
                             </Link>
+                            <Link to="/biolink" className="text-gray-800 font-bold text-x hover:text-orange-600 transition-colors whitespace-nowrap">
+                                Biolink
+                            </Link>
+                            {/* <Link to="/error" className="text-gray-800 font-bold text-x hover:text-orange-600 transition-colors whitespace-nowrap">
+                                Bảo trì
+                            </Link> */}
                         </nav>
                     </div>
 

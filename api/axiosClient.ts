@@ -54,6 +54,14 @@ axiosClient.interceptors.response.use(
             // window.location.href = '/login'; // Mở dòng này nếu muốn tự động đá về login
         }
 
+        // --- MỚI: Xử lý lỗi server (5xx) hoặc không có phản hồi (mất mạng/API down) ---
+        if (!error.response || (error.response.status >= 500 && error.response.status <= 599)) {
+            // Chỉ redirect nếu không phải đang ở trang maintenance để tránh loop
+            if (window.location.pathname !== '/maintenance') {
+                window.location.href = '/maintenance';
+            }
+        }
+
         // Trả về lỗi để component hiển thị alert
         return Promise.reject(error);
     }

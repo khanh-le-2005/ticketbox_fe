@@ -33,73 +33,80 @@ import SightseeingPage from './pages/SightseeingPage';
 import SportsPage from './pages/SportsPage';
 import NewsPage from './pages/NewsPage';
 import { NewsDetailPage } from './pages/NewsDetailPage';
+import BioLinkPage from './pages/BioLinkPage';
+import ErrorBoundary from './components/ErrorBoundary';
+import Error from './components/Error';
 
 function App() {
   return (
-    <Router>
-      <AuthProvider>
-        <ScrollToTop />
-        <Routes>
-          {/* --- PUBLIC ROUTES (Ai cũng xem được) --- */}
-          <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/news" element={<NewsPage />} />
+    <ErrorBoundary>
+      <Router>
+        <AuthProvider>
+          <ScrollToTop />
+          <Routes >
+            {/* --- PUBLIC ROUTES (Ai cũng xem được) --- */}
+            <Route path="/" element={<HomePage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/news" element={<NewsPage />} />
 
-          {/* Chi tiết */}
-          <Route path="/event/:id" element={<EventDetailPage />} />
-          <Route path="/hotel/:slug" element={<HotelDetailPage />} />
-          <Route path="/booking" element={<BookingPage />} />
-          <Route path="/news/:id" element={<NewsDetailPage />} />
+            {/* Chi tiết */}
+            <Route path="/event/:slug" element={<EventDetailPage />} />
+            <Route path="/hotel/:slug" element={<HotelDetailPage />} />
+            <Route path="/booking" element={<BookingPage />} />
+            <Route path="/news/:id" element={<NewsDetailPage />} />
+            <Route path="/biolink" element={<BioLinkPage />} />
 
-          {/* Danh mục sự kiện */}
-          <Route path="/music" element={<MusicPage />} />
-          <Route path="/arts" element={<ArtsPage />} />
-          <Route path="/tourism" element={<TourismPage />} />
-          <Route path="/movies" element={<MoviesPage />} />
-          <Route path="/sightseeing" element={<SightseeingPage />} />
-          <Route path="/sports" element={<SportsPage />} />
+            {/* Danh mục sự kiện */}
+            <Route path="/music" element={<MusicPage />} />
+            <Route path="/arts" element={<ArtsPage />} />
+            <Route path="/tourism" element={<TourismPage />} />
+            <Route path="/movies" element={<MoviesPage />} />
+            <Route path="/sightseeing" element={<SightseeingPage />} />
+            <Route path="/sports" element={<SportsPage />} />
+            <Route path="/error" element={<Error />} />
 
-          {/* --- PROTECTED ROUTES (Cần đăng nhập) --- */}
+            {/* --- PROTECTED ROUTES (Cần đăng nhập) --- */}
 
-          {/* Vé của tôi: Cần đăng nhập để lấy lịch sử vé từ API */}
-          <Route
-            path="/my-tickets"
-            element={
-              <MyTicketsPage />
-            }
+            {/* Vé của tôi: Cần đăng nhập để lấy lịch sử vé từ API */}
+            <Route
+              path="/my-tickets"
+              element={
+                <MyTicketsPage />
+              }
+            />
+
+            {/* Dashboard (Nếu có admin dashboard trong app này) */}
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <DashboardPage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* --- 404 NOT FOUND --- */}
+            {/* Nếu nhập đường dẫn sai, tự động quay về trang chủ */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+
+          </Routes>
+          <ToastContainer
+            aria-label="Notification Container"
+            position="top-right"
+            autoClose={3000}
+            hideProgressBar={false}
+            newestOnTop={false}
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+            theme="light"
           />
-
-          {/* Dashboard (Nếu có admin dashboard trong app này) */}
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <DashboardPage />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* --- 404 NOT FOUND --- */}
-          {/* Nếu nhập đường dẫn sai, tự động quay về trang chủ */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-
-        </Routes>
-        <ToastContainer
-          aria-label="Notification Container"
-          position="top-right"
-          autoClose={3000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="light"
-        />
-      </AuthProvider>
-    </Router>
+        </AuthProvider>
+      </Router>
+    </ErrorBoundary>
   );
 }
 export default App;

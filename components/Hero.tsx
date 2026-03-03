@@ -10,6 +10,25 @@ import 'swiper/css/navigation';
 import { getActiveBannersByMenu } from '../api/api_banner-new';
 import { Banner } from '../type';
 
+const resolveBannerLink = (banner: any): string => {
+  const rawLink = String(
+    banner.link || banner.linkUrl || banner.url || banner.redirectUrl || banner.slug || ''
+  ).trim();
+
+  if (!rawLink) return '#';
+
+  if (/^https?:\/\//i.test(rawLink)) return rawLink;
+
+  if (rawLink.startsWith('/')) return rawLink;
+
+  if (rawLink.startsWith('event/') || rawLink.startsWith('hotel/') || rawLink.startsWith('news/')) {
+    return `/${rawLink}`;
+  }
+
+  // Admin thuong nhap slug thuan cho show => map ve route chi tiet su kien
+  return `/event/${rawLink}`;
+};
+
 const Hero: React.FC = () => {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -68,7 +87,7 @@ const Hero: React.FC = () => {
           className="w-full h-[250px] md:h-[400px] lg:h-[500px] rounded-lg shadow-lg"
         >
           {banners.map((banner: any) => {
-            const finalLink = banner.link || banner.linkUrl || banner.url || banner.redirectUrl || '';
+            const finalLink = resolveBannerLink(banner);
             const isExternal = finalLink.startsWith('http');
 
             return (

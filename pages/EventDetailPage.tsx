@@ -30,7 +30,7 @@ const formatCurrency = (val: number) =>
     val
   );
 const EventDetailPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
 
   const [event, setEvent] = useState<any | null>(null);
@@ -44,13 +44,13 @@ const EventDetailPage: React.FC = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!id) return;
+      if (!slug) return;
       try {
         setLoading(true);
         window.scrollTo(0, 0);
 
         // --- 1. LẤY CHI TIẾT SỰ KIỆN HIỆN TẠI ---
-        const detailRes: any = await showApi.getById(id);
+        const detailRes: any = await showApi.getById(slug);
         const showData = detailRes.data || detailRes;
 
         // Xử lý ảnh chính
@@ -106,7 +106,9 @@ const EventDetailPage: React.FC = () => {
 
         if (Array.isArray(allShowsData)) {
           const others = allShowsData
-            .filter((item: any) => String(item.id) !== id)
+            .filter((item: any) =>
+              String(item.id) !== slug && String(item.slug || "") !== slug
+            )
             .slice(0, 3)
             .map((item: any) => {
               let thumbUrl = "https://placehold.co/600x400?text=No+Image";
@@ -124,6 +126,7 @@ const EventDetailPage: React.FC = () => {
 
               return {
                 id: item.id,
+                slug: item.slug,
                 title: item.name,
                 date: item.startTime,
                 image: thumbUrl,
@@ -142,10 +145,10 @@ const EventDetailPage: React.FC = () => {
     };
 
     fetchData();
-  }, [id]);
+  }, [slug]);
 
-  const handleRelatedClick = (relatedId: string) => {
-    navigate(`/event/${relatedId}`);
+  const handleRelatedClick = (identifier: string) => {
+    navigate(`/event/${identifier}`);
   };
 
   // --- LIGHTBOX HANDLERS (LOGIC MỚI) ---
@@ -285,7 +288,7 @@ const EventDetailPage: React.FC = () => {
               {event.gallery && event.gallery.length > 0 && (
                 <div className="mt-8 border-t pt-6">
                   <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2 uppercase">
-                    <span className="text-indigo-600"><FaImages /></span> Sơ đồ / Thư viện ảnh
+                    <span className="text-indigo-600"><FaImages /></span> Sơ đồ / Ảnh
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {event.gallery.map((imgUrl: string, index: number) => (
@@ -429,7 +432,7 @@ const EventDetailPage: React.FC = () => {
                 {relatedEvents.map((item) => (
                   <div
                     key={item.id}
-                    onClick={() => handleRelatedClick(item.id)}
+                    onClick={() => handleRelatedClick(item.slug || item.id)}
                     className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow cursor-pointer group"
                   >
                     <div className="h-48 bg-gray-300 relative overflow-hidden">

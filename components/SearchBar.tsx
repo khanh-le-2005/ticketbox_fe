@@ -77,8 +77,8 @@ const SearchBar: React.FC = () => {
                     <div className="divide-y divide-gray-100">
                         {searchResults.map((show) => (
                             <Link
-                                key={show.id}
-                                to={`/event/${show.id}`}
+                                key={show.slug || show.id}
+                                to={`/event/${show.slug || show.id}`}
                                 className="flex items-center gap-4 p-3 hover:bg-orange-50 transition-colors group"
                                 onClick={() => {
                                     setIsDropdownOpen(false);

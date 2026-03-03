@@ -1,12 +1,15 @@
 export interface Banner {
-  id?: string; // MongoDB ID là string, tùy chọn khi tạo mới
+  id?: string;
   imageUrl: string;
-  title: string;
-  subtitle: string;
-  link: string;
-  menu?: string; // BỔ SUNG: Trường menu
+  title?: string;
+  subtitle?: string;
+  link?: string;
+  linkUrl?: string;
+  url?: string;
+  redirectUrl?: string;
+  slug?: string;
+  menu?: string;
   displayOrder?: number;
-  isActive: boolean;
-  active: boolean;
+  isActive?: boolean;
+  active?: boolean;
 }
-

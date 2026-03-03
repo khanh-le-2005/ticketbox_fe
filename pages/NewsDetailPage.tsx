@@ -160,14 +160,14 @@ export const NewsDetailPage: React.FC = () => {
 
               {/* HTML Content */}
               <div
-                className="prose prose-lg max-w-none text-gray-700 prose-headings:text-gray-900 prose-a:text-orange-600 prose-img:rounded-xl prose-img:shadow-md prose-p:leading-loose"
+                className="prose prose-lg max-w-none text-gray-700 prose-headings:text-gray-900 prose-a:text-blue-600 hover:prose-a:text-blue-700 prose-img:rounded-xl prose-img:shadow-md prose-p:leading-loose"
                 dangerouslySetInnerHTML={{ __html: safeContent }}
               />
 
               {/* Footer bài viết */}
               <div className="mt-12 pt-8 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-6">
                 <div className="flex flex-wrap items-center gap-2 text-gray-500 text-sm">
-                  <Tag className="w-4 h-4 text-orange-500" />
+                  <Tag className="w-4 h-4 text-blue-500" />
                   <span className="font-bold text-gray-700">Tags:</span>
                   {article.tags ? (
                     article.tags.split(",").map((tag, idx) => (

@@ -1,14 +1,14 @@
 // src/pages/MusicPage.tsx
 
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import showApi from "../api/showApi";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import EventCard from "../components/EventCard";
 import FloatButton from "@/components/FloatButton";
 
 // Cấu hình URL
-const API_URL = "https://api.momangshow.vn/api/shows";
+// const API_URL = "https://api.momangshow.vn/api/shows";
 const API_IMAGE_BASE = "https://api.momangshow.vn/api/images";
 
 // Hàm helper format tiền
@@ -27,19 +27,16 @@ const MusicPage: React.FC = () => {
       try {
         setLoading(true);
 
-        // --- GỌI TRỰC TIẾP AXIOS ---
-        const response = await axios.get(API_URL);
+        // --- GỌI QUA showApi ---
+        const response: any = await showApi.getAllShows({ size: 100 });
 
         // response.data là toàn bộ cục JSON trả về
         const result = response.data;
 
-        // Kiểm tra cấu trúc dựa trên JSON mẫu: { success: true, data: { content: [] } }
-        if (
-          result.success &&
-          result.data &&
-          Array.isArray(result.data.content)
-        ) {
-          const showList = result.data.content;
+        // Kiểm tra cấu trúc (Hỗ trợ cả response.data.content, response.shows, hoặc response là array)
+        const showList = result?.data?.content || result?.content || result?.shows || (Array.isArray(result) ? result : null);
+
+        if (Array.isArray(showList)) {
 
           // Map dữ liệu
           const mappedEvents = showList.map((show: any) => {
@@ -73,6 +70,7 @@ const MusicPage: React.FC = () => {
             // 4. Return object chuẩn cho EventCard
             return {
               id: show.id,
+              slug: show.slug,
               title: show.name,
               date: show.startTime, // "2024-12-31T20:00:00"
               location: fullLocation || "Đang cập nhật",

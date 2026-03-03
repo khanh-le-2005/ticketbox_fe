@@ -44,6 +44,7 @@ const ArtsPage: React.FC = () => {
 
                     return {
                         id: show.id,
+                        slug: show.slug,
                         title: show.name,
                         date: show.startTime,
                         location: fullLocation || "Đang cập nhật",

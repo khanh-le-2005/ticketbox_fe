@@ -100,6 +100,7 @@ export interface IShowSearchParams {
   active?: boolean;
   startDate?: string;
   endDate?: string;
+  size?: number;
 }
 
 export interface IShowListResponse {
@@ -121,14 +122,14 @@ export interface IShowImageResponse {
 
 
 export interface ITicketType {
-    id?: string;
-    code: string;           // 🔥 BẮT BUỘC
-    name: string;
-    description?: string;
-    price: number;
-    totalQuantity: number;  // 🔥 SỬA: Đổi từ quantity sang totalQuantity
-    // availableQuantity: number; // Có thể backend tự tính, nhưng gửi kèm cũng được
-    active: boolean;
+  id?: string;
+  code: string;           // 🔥 BẮT BUỘC
+  name: string;
+  description?: string;
+  price: number;
+  totalQuantity: number;  // 🔥 SỬA: Đổi từ quantity sang totalQuantity
+  // availableQuantity: number; // Có thể backend tự tính, nhưng gửi kèm cũng được
+  active: boolean;
 }
 
 export interface IShowImage {
@@ -136,7 +137,7 @@ export interface IShowImage {
   imageContentType: string;
   imageFileName: string;
   displayOrder: number;
-  imageUrl?: string; 
+  imageUrl?: string;
 }
 
 export interface IShowArtist {
@@ -225,6 +226,7 @@ export interface IShowSearchParams {
   active?: boolean;
   startDate?: string;
   endDate?: string;
+  size?: number;
 }
 
 // Response Types

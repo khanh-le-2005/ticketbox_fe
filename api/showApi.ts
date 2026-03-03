@@ -6,8 +6,10 @@ const showApi = {
   /**
    * Lấy danh sách Show có phân trang và lọc
    */
-  getAllShows: async (params?: IShowSearchParams): Promise<IShowListResponse> => {
-    return axiosClient.get('/shows', { params });    
+  getAllShows: async (params? : IShowSearchParams): Promise<IShowListResponse> => {
+    return axiosClient.get('/shows', { params: 
+      {size: 100, ...params } 
+    });    
   },
 
   /**
