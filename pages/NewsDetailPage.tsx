@@ -10,11 +10,11 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 
 // Import API
-import { getPublicArticleById, Article } from "../api/api_article";
+import { getPublicArticleBySlug, Article } from "../api/api_article";
 import FloatButton from "@/components/FloatButton";
 
 export const NewsDetailPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { slug } = useParams<{ slug: string }>();
 
   const [article, setArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState(true);
@@ -24,11 +24,11 @@ export const NewsDetailPage: React.FC = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
 
-    if (id) {
+    if (slug) {
       const fetchArticle = async () => {
         setLoading(true);
         try {
-          const data = await getPublicArticleById(id);
+          const data = await getPublicArticleBySlug(slug);
           setArticle(data);
         } catch (err) {
           console.error(err);
@@ -39,7 +39,77 @@ export const NewsDetailPage: React.FC = () => {
       };
       fetchArticle();
     }
-  }, [id]);
+  }, [slug]);
+
+  // --- 2. Cập nhật SEO Meta Tags & Schema ---
+  useEffect(() => {
+    if (article) {
+      // Cập nhật Title
+      const title = article.seoTitle || article.title;
+      document.title = title;
+
+      // Cập nhật Meta Description
+      let description =
+        article.seoDescription || article.shortDescription || "";
+      let metaDescription = document.querySelector('meta[name="description"]');
+      if (!metaDescription) {
+        metaDescription = document.createElement("meta");
+        metaDescription.setAttribute("name", "description");
+        document.head.appendChild(metaDescription);
+      }
+      metaDescription.setAttribute("content", description);
+
+      // Cập nhật Open Graph Tags
+      const ogTags = [
+        { property: "og:type", content: "article" },
+        { property: "og:title", content: title },
+        { property: "og:description", content: description },
+        { property: "og:image", content: article.thumbUrl },
+        {
+          property: "og:url",
+          content: window.location.href,
+        },
+      ];
+
+      ogTags.forEach((tag) => {
+        let element = document.querySelector(`meta[property="${tag.property}"]`);
+        if (!element) {
+          element = document.createElement("meta");
+          element.setAttribute("property", tag.property);
+          document.head.appendChild(element);
+        }
+        element.setAttribute("content", tag.content);
+      });
+
+      // Thêm JSON-LD Schema
+      const schemaData = {
+        "@context": "https://schema.org",
+        "@type": "NewsArticle",
+        headline: article.seoTitle || article.title,
+        image: [article.thumbUrl],
+        datePublished: article.publishedDate || article.createdDate,
+        dateModified: article.publishedDate || article.createdDate,
+        description: article.seoDescription || article.shortDescription,
+        author: {
+          "@type": "Person",
+          name: "Admin",
+        },
+      };
+
+      let scriptSchema = document.getElementById("article-schema") as HTMLScriptElement;
+      if (!scriptSchema) {
+        scriptSchema = document.createElement("script");
+        scriptSchema.id = "article-schema";
+        scriptSchema.type = "application/ld+json";
+        document.body.appendChild(scriptSchema);
+      }
+      scriptSchema.textContent = JSON.stringify(schemaData);
+    }
+
+    return () => {
+      // Cleanup nếu cần (tùy chọn)
+    };
+  }, [article]);
 
   // Format ngày tháng
   const formatDate = (dateString?: string) => {

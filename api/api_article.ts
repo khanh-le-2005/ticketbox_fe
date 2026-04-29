@@ -1,5 +1,7 @@
 import axiosClient from './axiosClient';
-import { Article } from '@/type/indext';
+import { Article } from '@/type/article.type';
+
+export type { Article };
 
 const ENDPOINT = '/admin/news';
 
@@ -95,7 +97,7 @@ export const getPublishedNewsByMenu = async (menu: string): Promise<Article[]> =
 };
 
 /**
- * Lấy chi tiết bài viết công khai
+ * Lấy chi tiết bài viết công khai theo ID
  * GET /api/admin/news/{id}
  */
 export const getPublicArticleById = async (id: string): Promise<Article> => {
@@ -103,6 +105,19 @@ export const getPublicArticleById = async (id: string): Promise<Article> => {
     return await axiosClient.get(`${ENDPOINT}/${id}`);
   } catch (error) {
     console.error(`Error fetching public article with ID ${id}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Lấy chi tiết bài viết công khai theo Slug
+ * GET /api/admin/news/detail/{slug}
+ */
+export const getPublicArticleBySlug = async (slug: string): Promise<Article> => {
+  try {
+    return await axiosClient.get(`${ENDPOINT}/detail/${slug}`);
+  } catch (error) {
+    console.error(`Error fetching public article with slug ${slug}:`, error);
     throw error;
   }
 };

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { 
-    FaUser, FaEnvelope, FaPhone, FaLock, FaEye, FaEyeSlash, 
-    FaSpinner, FaIdCard, FaUserPlus 
+import {
+    FaUser, FaEnvelope, FaPhone, FaLock, FaEye, FaEyeSlash,
+    FaSpinner, FaIdCard, FaUserPlus
 } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 
@@ -75,14 +75,14 @@ const RegisterPage: React.FC = () => {
         <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4 font-sans leading-relaxed">
             {/* Thu nhỏ max-width từ 6xl xuống 4xl để form trông cao và gọn hơn */}
             <div className="bg-white w-full max-w-4xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[600px]">
-                
+
                 {/* CỘT TRÁI: Thu hẹp độ rộng banner */}
                 <div className="hidden md:flex md:w-2/5 relative bg-gray-900 text-white flex-col justify-between p-8">
                     <div className="absolute inset-0">
                         <img src={BANNER_IMAGE} alt="Register Banner" className="w-full h-full object-cover opacity-50" />
                         <div className="absolute inset-0 bg-gradient-to-br from-orange-600/40 to-black/80" />
                     </div>
-                    
+
                     <div className="relative z-10">
                         <h2 className="text-2xl font-black tracking-tight mb-1">Mơ Màng Show</h2>
                         <p className="text-orange-300 text-xs font-bold uppercase tracking-widest">Connect with Music</p>
@@ -99,7 +99,7 @@ const RegisterPage: React.FC = () => {
 
                 {/* CỘT PHẢI: Tối ưu không gian Form */}
                 <div className="w-full md:w-3/5 p-8 md:px-12 py-10 flex flex-col justify-center bg-white">
-                    
+
                     <div className="mb-8 text-center md:text-left">
                         <h1 className="text-2xl font-black text-gray-800 mb-1">Tạo tài khoản</h1>
                         <p className="text-gray-400 text-sm font-medium">

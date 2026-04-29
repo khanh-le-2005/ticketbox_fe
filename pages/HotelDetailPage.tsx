@@ -464,8 +464,22 @@ const HotelDetailPage: React.FC = () => {
               <div className="mt-8 pt-6 border-t border-dashed border-gray-200 text-center">
                 <p className="text-xs font-bold text-gray-500 uppercase mb-3">CHIA SẺ KHÁCH SẠN NÀY</p>
                 <div className="flex justify-center gap-4">
-                  <a href={`https://www.facebook.com/sharer/sharer.php?u=${window.location.origin}/hotel/${hotel.slug || hotel.id}`} target="_blank" className="text-blue-600 hover:scale-110 transition"><FaFacebook size={24} /></a>
-                  <a href={`https://twitter.com/intent/tweet?url=${window.location.origin}/hotel/${hotel.slug || hotel.id}`} target="_blank" className="text-blue-400 hover:scale-110 transition"><FaTwitter size={24} /></a>
+                  <a
+                    href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`${window.location.origin}/hotel/${hotel.slug || hotel.id}`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:scale-110 transition"
+                  >
+                    <FaFacebook size={24} />
+                  </a>
+                  <a
+                    href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(`${window.location.origin}/hotel/${hotel.slug || hotel.id}`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:scale-110 transition"
+                  >
+                    <FaTwitter size={24} />
+                  </a>
                   <button className="text-gray-500 hover:scale-110 transition" onClick={() => {
                     const shareUrl = `${window.location.origin}/hotel/${hotel.slug || hotel.id}`;
                     navigator.clipboard.writeText(shareUrl);

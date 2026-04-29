@@ -54,7 +54,7 @@ function App() {
             <Route path="/event/:slug" element={<EventDetailPage />} />
             <Route path="/hotel/:slug" element={<HotelDetailPage />} />
             <Route path="/booking" element={<BookingPage />} />
-            <Route path="/news/:id" element={<NewsDetailPage />} />
+            <Route path="/news/:slug" element={<NewsDetailPage />} />
             <Route path="/biolink" element={<BioLinkPage />} />
 
             {/* Danh mục sự kiện */}
